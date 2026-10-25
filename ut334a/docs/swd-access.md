@@ -69,4 +69,6 @@ replace it with e.g. `fm33_arm; fm33_wait_halt; fm33_protection; fm33_release; s
 | `ut334a_ram_at_reset.bin` | RAM with the core halted at the reset vector |
 | `SHA256SUMS` | checksums (verify with `cd backup && sha256sum -c SHA256SUMS`; all OK on 2026-10-25) |
 
-Keep a second copy off this PC. A restore script (flash `ut334a_stock_1.bin` to 0x0) is a Phase 4 deliverable.
+Keep a second copy off this PC. Restore: `tools/fm33_flash.sh restore --erase-it` (checks the SHA-256, erases all
+512 pages, programs, compares a full readback). Flashing Rad Pro: `tools/fm33_flash.sh flash <signed.bin> --erase-it`.
+Read-only connection test: `tools/fm33_flash.sh dryrun`. Not yet run on hardware (2026-10-25).

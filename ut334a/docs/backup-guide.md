@@ -78,8 +78,10 @@ Store the backup in at least two places (for example the PC and a USB stick or p
 Do not publish it: it is UNI-T's copyrighted firmware.
 
 ## Restoring
-A restore script that writes `ut334a_stock_1.bin` back to flash address 0x0 will ship together with the
-Rad Pro flashing tool for this port (not available yet). Restoring needs the same wiring.
+Same wiring and NRST hold. `tools/fm33_flash.sh` flashes an image over SWD (page erase of the whole main
+flash, program, full readback compare, reset). In the port's workspace `restore` uses `backup/ut334a_stock_1.bin`
+and checks its SHA-256 first; with your own dump, run `tools/fm33_flash.sh flash <your dump>.bin --erase-it`.
+The tool has not yet been run on real hardware (see `docs/ut334a-notes.md`).
 
 ## If the unit stays dark after a failed session
 Debug settings survive a normal reset. Hold NRST, run

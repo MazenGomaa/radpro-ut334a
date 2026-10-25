@@ -157,3 +157,7 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   the expected image. Rad Pro = 11 874 words, stock restore = 52 833 words.
 - Offline test: the procs run inside OpenOCD against a fake flash controller produce exactly the expected image
   for both Rad Pro and the stock backup; guards reject 0x40000, 0x1FFFFC00 and unaligned erases.
+
+## 2026-10-25: end of session
+- State saved for the bench session: code complete except comm, everything emulator-verified only. Next steps
+  are listed at the top of `phase4-plan.md`; `CLAUDE.md` points there.

@@ -1,4 +1,35 @@
-# Phase 4: Rad Pro FM33 port (plan input)
+# Phase 4: Rad Pro FM33 port
+
+## Status and next steps (2026-10-25)
+Done in code, verified in the emulator (`tools/fw_emu.py`), not yet on hardware: build env `uni-t-ut334a-<lang>`
+(fork `radpro/`, branch `ut334a`), core drivers (clock, SysTick/IWDT, RTC, power-off = DeepSleep), hardware
+drivers (display, backlight, keys, tube + HV bursts, buzzer with volume, LED, battery ADC, flash), SWD
+flash/restore tools. Details per step: `docs/ut334a-notes.md` (2026-10-25 entries A–D). Comm is a stub.
+
+Next session, in order (stop for confirmation after each):
+1. **Dry run** (read-only): wire as in `docs/swd-access.md`, user holds NRST, `tools/fm33_flash.sh dryrun`
+   (background, ~3 min window); tell the user to release NRST at ARMED. Expect UNPROTECTED, and note the
+   "100 reads" timing (flashing ≈ 6 SWD operations per word: 11 874 words for Rad Pro, 52 833 for the restore).
+2. **Build and sign**: `pio run -e uni-t-ut334a-en` in `radpro/platform.io`, then run `radpro/tools/sign.py`
+   from a scratch directory; the image is `uni-t-ut334a/firmware/radpro-uni-t-ut334a-en-<version>.bin`
+   (128 KB, CRC footer). Never flash the unsigned `firmware.bin` (checksum alarm at every boot).
+3. **Flash**, only after the user says "erase it": `tools/fm33_flash.sh flash <signed.bin> --erase-it` with the
+   NRST hold. It erases all 512 pages, programs, compares a full readback, then resets. If verify fails:
+   `tools/fm33_flash.sh restore --erase-it`.
+4. **Bring-up** (one at a time, user checks on the bench):
+   a. boots at all? SWD now connects without NRST (PD7/PD8 left free); a dark unit after a reset → restore or debug.
+   b. display: image, orientation, colours (MADCTL/INVON), backlight polarity and whether it needs PC4.
+   c. keys: left/right/OK, long OK = on/off; power-off → DeepSleep current, wake by key/USB.
+   d. GM: counts vs stock on the same background; HV at the tube (HV probe only) with the 5/19 ms bursts.
+   e. buzzer clicks and volume levels; LED colours (pulse vs alert).
+   f. battery voltage vs a multimeter (divider 0.5438, PC4 settle 5 ms), charging indication on USB.
+   g. RTC keeps time through power-off; settings and datalog survive a battery disconnect (flash writes).
+   h. sleep current; then calibration (stock ≈ 66.7 CPM/µSv/h low range; tube sensitivity setting).
+5. Later: comm over UART0 (PA13 RX / PA14 TX) after the CH340 mod; LCD supply cut in power-off.
+
+---
+
+# Plan input (written before the port; kept for reference)
 
 From the original brief (§6, `docs/archive/original-brief.md`), updated with the Phase 1–2 findings.
 **First step of Phase 4: check this against the current radpro repo**, then give the user a concrete plan.
