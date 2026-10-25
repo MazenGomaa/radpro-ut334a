@@ -24,6 +24,8 @@ the 6-diode multiplier ladder and both tube ends/clips. Probe only the MCU side 
 | Low-speed clock | 32.768 kHz crystal on **PD9/PD10** (XT32KO/XT32KI), RCC_XTLFCR.EN=5, LSCLKSEL=0xAA (XTLF) | [E 0xD064], [S 0x6D98] |
 | Low-speed mode | `0x6DD8(0)`: back to RCHF, PLL off, 0 wait states (used before power-off) | [S 0x6DD8] |
 | Watchdog | IWDT served in main loop (`IWDT_SERV = 0x12345A5A`); DBG_CR=3 stops IWDT/WWDT while halted | [S 0xDC68], [S 0xC724] |
+| Option bytes vs IWDT | OPTBYTES high half = 0xFFFF → IWDTSLP = 0xF ≠ 0xA, so **the IWDT keeps counting in Sleep/DeepSleep** (freeze not allowed) | [B dump], [DS 7.4.2, 9.5] |
+| SVD errata | FM33LC0XX.SVD (DFP 3.0.4) puts the VREF registers 0x0C too high; header (VREF_CR 0x4001A80C) is right, matching the stock firmware | [DS 5.2], [S 0x310C] |
 | Boot | Reset → SystemInit 0xC6FC (FMSH template) → Keil `__main` → `main` 0xDC68 | [S 0x17C] |
 
 ## 2. Pin map (all 32 package pins)

@@ -33,6 +33,10 @@ void powerOn(void);
 void powerOff(void);
 bool isPoweredOn(void);
 
+#if defined(POWER_OFF_SLEEP)
+void sleepWhilePoweredOff(void);
+#endif
+
 void updatePowerState(void);
 
 float getBatteryVoltage(void);

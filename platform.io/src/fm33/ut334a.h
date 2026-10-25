@@ -15,11 +15,15 @@
 #define AHB_FREQUENCY (SYSCLK_FREQUENCY / 1)
 #define APB_FREQUENCY (AHB_FREQUENCY / 1)
 #define XTLF_FREQUENCY 32768
+#define XTLF_OUT_PIN 9 // PD9
+#define XTLF_IN_PIN 10 // PD10
 
 // PD7 (SWCLK) and PD8 (SWDIO) stay SWD: never reconfigure them
 
 #define PWR_USB_PORT GPIOA
 #define PWR_USB_PIN 9
+#define PWR_USB_EXTI 2 // EXTI[2] = PA8..PA11, ASEL[5:4] = 01 selects PA9
+#define PWR_USB_EXTI_ASEL 0b01
 #define PWR_HVBATT_PORT GPIOC
 #define PWR_HVBATT_PIN 4
 #define PWR_BAT_PORT GPIOC
@@ -34,10 +38,13 @@
 
 #define KEY_LEFT_PORT GPIOA
 #define KEY_LEFT_PIN 15
+#define KEY_LEFT_WKUP 0
 #define KEY_RIGHT_PORT GPIOD
 #define KEY_RIGHT_PIN 11
+#define KEY_RIGHT_WKUP 6
 #define KEY_OK_PORT GPIOA
 #define KEY_OK_PIN 10
+#define KEY_OK_WKUP 1
 
 #define DISPLAY_RESX_PORT GPIOB
 #define DISPLAY_RESX_PIN 13

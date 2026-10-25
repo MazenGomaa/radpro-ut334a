@@ -89,3 +89,26 @@ Facts live in `ut334a-hardware.md` (hardware), `swd-access.md` (debug access), `
 - Result: links; RAM 4.1 KB / 24 KB, code 39.8 KB (stubs). Vector table: SP 0x20006000, reset vector Thumb.
   `fnirsi-gc03-en` and `fs2011-stm32f051c8-en` still build.
 - Datasheet: IWDT is off after power-on reset (so no reset loop before the watchdog code exists).
+
+## 2026-10-25: Phase 4 step B, core drivers (done, emulator-verified; not on hardware yet)
+- `tools/svd_header.py` → `lib/fm33/fm33lc0xx_bits.h` (`<TYPE>_<REG>_<FIELD>_Pos/_Msk`), cross-checking every
+  DFP header member against the SVD. Disagreements: **VREF block** (SVD 0x0C too high; the datasheet and the stock
+  firmware's accesses at 0x4001A80C/0x4001A810 confirm the header), UART4/5 TODR and some USB regs (unused).
+  Naming aliases: timer `CCMRx` = SVD `CCMRx_Output`; `COMP1/COMP2->CR` = SVD `COMP_CR1/CR2`.
+- Clock (`fm33_system.c`): FMSH SystemInit equivalent (trims from 0x1FFFFB20/40/44, PDR/BOR, DBG_CR=3, SWD
+  pull-ups), XTLF on PD9/PD10, PLL 8 MHz/8 × 64 = 64 MHz, FLS_RDCR.WAIT=2. Emulating both firmwares gives the
+  **same register writes** as stock 0xC6FC/0xD064/0x6DD8(64) (PLLCR 0x003F0030, SYSCLKCR 0x0A000002).
+- Events: SysTick 1 kHz (LOAD 63999), IWDT 4 s. **Option bytes IWDTSLP = 0xF (not 0xA) → the IWDT cannot be frozen
+  in Sleep/DeepSleep** (datasheet 9.5), which is why the stock firmware wakes every second; we do the same.
+- Power "off" = DeepSleep (no latch): `setPowerEnabled(false)` only allows `sleepWhilePoweredOff()`, a new
+  main-loop hook behind `-DPOWER_OFF_SLEEP` (`main.c`, `power.h`). It cannot live in `sleep()`/`syncTick()`:
+  Rad Pro calls `syncTick()` everywhere as "wait for the next tick" and those must return (first attempt hung there,
+  found by emulation). DeepSleep: PMU_CR = SLPDP | PMOD=2 (0x202, same as stock), SLEEPDEEP clear, WFI; wakes on
+  RCHF 8 MHz → PLL restarted. Wake sources: keys = WKUP0 (PA15), WKUP1 (PA10), WKUP6 (PD11), falling edge,
+  WKUP_IRQn 22; USB = PA9 on EXTI2 (ASEL 01, rising, filter; EXTI clock from LSCLK); RTC 1 s (SEC_IE).
+- RTC (`fm33_rtc.c`): BCD calendar, double read, WER = 0xACACACAC (moved here from step C: needed for the
+  watchdog wake-up). Reset flags: RCC_RSTFR, write 1 to clear.
+- `initGPIO` drives a safe state first: PC5 (HV run) low, PC4 (HVbatt) low, PB14 high (LCD off), LED/speaker low.
+- `tools/fw_emu.py`: runs our build from reset with simulated SysTick. Boot without a key: battery screen 5 s →
+  DeepSleep at tick 5003; wake → PLL restart → re-sleep; a held key prevents DeepSleep.
+- **Not flashable yet**: the stub display leaves the renderer callbacks NULL (would hard-fault). Step C first.

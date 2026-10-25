@@ -92,6 +92,9 @@ int main(void)
 #if defined(GAME)
         updateGame();
 #endif
+#if defined(POWER_OFF_SLEEP)
+        sleepWhilePoweredOff();
+#endif
     }
 #endif
 }
