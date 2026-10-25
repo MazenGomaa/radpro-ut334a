@@ -142,3 +142,18 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   unsigned image → checksum alarm, signed → none; first boot erases/writes the settings and datalog pages.
 - Sizes: en 52 KB, zh_CN 77 KB (slot 128 KB); RAM 11.9 KB / 24 KB. GC-03, FS5000, FS2011 still build.
 - Left for later: comm (UART0 on PA13/PA14, after the CH340 mod); LCD supply cut in power-off (now SLPIN only).
+
+## 2026-10-25: Phase 4 step D, flashing tools (written and tested offline; dry run pending)
+- pyOCD not installed and would need connect-under-reset (the ST-Link RST does not work here), so flashing uses
+  the proven OpenOCD path: manual NRST hold → `fm33_arm` → halt at reset vector → flash controller over SWD
+  (datasheet 7.4.3: SWD may page-erase and program).
+- `tools/fm33_flash.tcl`: procs only (loaded after the unchanged read-only `fm33-stlink.cfg`): FLM Init clocks,
+  page erase, word program, error flags checked, refuses addresses outside 0x0–0x3FFFF and unaligned pages,
+  `fm33_reset_run` = clear debug + SYSRESETREQ (the halted PC belongs to the old image).
+- `tools/fm33_flashgen.py`: image → erase all 512 pages one by one (stock data reaches 0x3BA27, 478 pages, so the
+  settings/datalog area must be cleared too) + program non-0xFF words; checks the vector table.
+- `tools/fm33_flash.sh dryrun | flash <signed.bin> --erase-it | restore --erase-it`: retry loop for the NRST hold,
+  protection must read UNPROTECTED, restore checks the backup SHA-256 first, full 256 KB readback compared with
+  the expected image. Rad Pro = 11 874 words, stock restore = 52 833 words.
+- Offline test: the procs run inside OpenOCD against a fake flash controller produce exactly the expected image
+  for both Rad Pro and the stock backup; guards reject 0x40000, 0x1FFFFC00 and unaligned erases.
