@@ -72,3 +72,20 @@ Facts live in `ut334a-hardware.md` (hardware), `swd-access.md` (debug access), `
   USB auto power-on, data mode. Keep everything else; pulse/alert share the bi-colour LED. English first.
 - USB-C D+/D- are not connected on the board; the user will jumper them to the CH340.
 - Clone question: a web search found no source naming another maker's device as the UT334A's origin (open).
+
+## 2026-10-25: Phase 4 step A, build skeleton (done)
+- Backup guide for users: `docs/backup-guide.md` (stock firmware stays out of the public fork, user decision).
+- Env `uni-t-ut334a-en` (all languages generated): section `[uni-t-ut334a]` in `tools/platformio.ini.base` +
+  `tools/build-env.py` (regenerated `platformio.ini`, additions only). `platform = ststm32` for the toolchain,
+  **no framework** (framework-cmsis would pull an STM32 startup); board `boards/fm33lc043n.json`
+  (`-D FM33`, flash 0x0/256K, page 0x200, word 4; datasheet: 512 B page erase, 32-bit programming).
+- Flags: UT334A, PWR_USB, KEYBOARD_3_KEYS (same layout as FS5000: left, right, OK = power), DISPLAY_240X320,
+  DISPLAY_COLOR, BUZZER, PULSE_LED, ALERT_LED, LED_MULTIPLEX. FIRMWARE_SIZE 0x20000 for every language, so the
+  settings/datalog layout does not move between languages; `scripts/ut334a.ld` caps the code at 128 KB.
+- `lib/fm33/`: DFP device headers + CMSIS-Core 6 headers (unmodified, see its README), `fm33.h`, `fm33-ext.h`.
+- `src/fm33/`: GCC startup (the DFP startup is Keil-only), `device.h`, `ut334a.h` (pins from the hardware map),
+  stub drivers (no hardware access; flash stubs never write), `ut334a.c`. Only shared-code change:
+  `TUBE_TYPE_DEFAULT` for UT334A in `settings.h` (M4011 for now; calibration at bring-up, stock ≈ 66.7 CPM/µSv/h).
+- Result: links; RAM 4.1 KB / 24 KB, code 39.8 KB (stubs). Vector table: SP 0x20006000, reset vector Thumb.
+  `fnirsi-gc03-en` and `fs2011-stm32f051c8-en` still build.
+- Datasheet: IWDT is off after power-on reset (so no reset loop before the watchdog code exists).

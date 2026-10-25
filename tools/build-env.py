@@ -97,5 +97,6 @@ env += build_env('fnirsi-gc01_apm32f103rb', 'color_21', 'color_32', 'color_115',
 env += build_env('fnirsi-gc03', 'color_21', 'color_32', 'color_84', 'color', False, '0xe000', '0x10000', '0x15000')
 env += build_env('gq-gmc800', 'color_16', 'color_24', 'color_84', 'color', False, '0xd000', '0xe000', '0x14000')
 env += build_env('gq-gmc800v2', 'color_16', 'color_24', 'color_84', 'color', False, '0xd000', '0xe000', '0x14000')
+env += build_env('uni-t-ut334a', 'color_21', 'color_32', 'color_84', 'color', False, '0x20000', '0x20000', '0x20000')
 
 write_file(get_radpro_path() + 'platform.io/platformio.ini', env)

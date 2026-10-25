@@ -234,3 +234,21 @@ build_flags =
 board_build.ldscript = scripts/gmc800v2.ld
 board_upload.offset_address = 0x08006000
 upload_flags = -c set CPUTAPID 0x2ba01477
+
+[uni-t-ut334a]
+platform = ststm32
+board = fm33lc043n
+build_flags =
+    ${base.build_flags}
+    -DUT334A
+    -DFIRMWARE_BASE=0x00000000
+    -DPWR_USB
+    -DKEYBOARD_3_KEYS
+    -DDISPLAY_240X320
+    -DDISPLAY_COLOR
+    -DBUZZER
+    -DPULSE_LED
+    -DALERT_LED
+    -DLED_MULTIPLEX
+lib_ignore = libusb_stm32
+board_build.ldscript = scripts/ut334a.ld

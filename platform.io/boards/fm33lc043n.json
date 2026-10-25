@@ -1,0 +1,24 @@
+{
+    "build": {
+        "core": "fm33",
+        "cpu": "cortex-m0plus",
+        "extra_flags": "-D FM33 -D FM33LC0XX -D FM33LC043N -D FLASH_BASE_=0x00000000 -D FLASH_SIZE_=0x40000 -D FLASH_PAGE_SIZE=0x200 -D FLASH_WORD_SIZE=0x4",
+        "f_cpu": "64000000L",
+        "mcu": "fm33lc043n"
+    },
+    "debug": {
+        "svd_path": "FM33LC0XX.SVD"
+    },
+    "frameworks": [],
+    "name": "Fudan Micro FM33LC043N",
+    "upload": {
+        "maximum_ram_size": 24576,
+        "maximum_size": 262144,
+        "protocol": "custom",
+        "protocols": [
+            "custom"
+        ]
+    },
+    "url": "https://www.fmsh.com/",
+    "vendor": "Fudan Micro"
+}
