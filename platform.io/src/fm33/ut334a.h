@@ -75,6 +75,7 @@
 #define DISPLAY_BACKLIGHT_PORT GPIOB
 #define DISPLAY_BACKLIGHT_PIN 2
 #define DISPLAY_BACKLIGHT_DFS true // PB2 second digital function = ATIM_CH1N
+#define DISPLAY_BACKLIGHT_ACTIVE_LOW // lit while PB2 is low (bench)
 #define DISPLAY_BACKLIGHT_TIMER ATIM
 // Stock: PSC = 1, ARR = 9999 -> 3.2 kHz
 #define DISPLAY_BACKLIGHT_TIMER_PRESCALER 2

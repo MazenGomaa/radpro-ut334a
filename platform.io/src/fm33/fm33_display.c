@@ -6,8 +6,10 @@
  *
  * License: MIT
  *
- * PWM on ATIM CH1N as in the stock firmware (0x6A1C, 0x69C4): OC1M = PWM mode 2, so the complementary
- * output CH1N is active while CNT < CCR1. ATIM outputs also need BDTR.MOE.
+ * PWM on ATIM CH1N as in the stock firmware (0x6A1C, 0x69C4). The backlight is lit while PB2 is low
+ * (bench, 2026-10-25: CCR1 0 brightest, 10000 dark with PWM mode 2), so OC1M = PWM mode 1: OC1REF is high
+ * while CNT < CCR1 and the complementary output CH1N is low then, so the on-time is CCR1. ATIM outputs also
+ * need BDTR.MOE.
  */
 
 #if defined(FM33)
@@ -39,7 +41,7 @@ void setBacklight(bool value)
         DISPLAY_BACKLIGHT_TIMER->CR1 = 0;
         DISPLAY_BACKLIGHT_TIMER->PSC = DISPLAY_BACKLIGHT_TIMER_PRESCALER - 1;
         DISPLAY_BACKLIGHT_TIMER->ARR = DISPLAY_BACKLIGHT_TIMER_PERIOD - 1;
-        DISPLAY_BACKLIGHT_TIMER->CCMR1 = (0b111 << ATIM_CCMR1_OC1M_Pos) | ATIM_CCMR1_OC1PE_Msk;
+        DISPLAY_BACKLIGHT_TIMER->CCMR1 = (0b110 << ATIM_CCMR1_OC1M_Pos) | ATIM_CCMR1_OC1PE_Msk;
         DISPLAY_BACKLIGHT_TIMER->CCR1 = displayOnTime[settings.displayBrightness];
         DISPLAY_BACKLIGHT_TIMER->CCER = ATIM_CCER_CC1NE_Msk;
         DISPLAY_BACKLIGHT_TIMER->EGR = ATIM_EGR_UG_Msk;
