@@ -88,9 +88,8 @@ static void unlockFlashClocks(void)
 
 static void lockFlash(void)
 {
-    // Any other value restores the write protection
-    FLASH->KEY = 0;
-
+    // No KEY write: each operation already closed with KEY = 0, and KEY = 0 in the protected state is a
+    // key error that locks the controller until a power-on reset (bench, 2026-10-25)
     clear_bits(RCC->OPCCR2, RCC_OPCCR2_FLASHCKE_Msk);
 }
 
