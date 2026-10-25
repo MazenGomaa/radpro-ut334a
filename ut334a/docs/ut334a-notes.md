@@ -1,0 +1,74 @@
+# UT334A Rad Pro port: log
+
+Facts live in `ut334a-hardware.md` (hardware), `swd-access.md` (debug access), `analysis-tools.md` (tools),
+`phase4-plan.md` (next steps). This file records what happened and why decisions were made.
+
+## 2026-10-25: Phase 1, SWD connection and backup
+- OpenOCD from PlatformIO (xPack 0.12.0+dev); the brief's `hla_swd` config failed, switched to `transport select swd`.
+- Hours of "init mode failed": partly bad wires (fixed), but mainly because the stock firmware parks PD7/PD8.
+  The datasheet (`datasheets/FM33LC0xx_datasheet_V1.9.pdf`) confirmed pads 2/3 = QFN 1 (PD8/SWDIO) / 32 (PD7/SWCLK),
+  pad 1 = QFN 2 (NRST).
+- SWD answered only while NRST was held low by hand (the clone's RST pin does not work on this board).
+- OpenOCD `cortex_m` rejected CPUID 0x410CC300 → switched to a `mem_ap` target.
+- Halt-on-reset via DHCSR/DEMCR, then: option bytes `AA 33 55 CC` → **unprotected**, ACLOCK off.
+  Flash dumped ×3 (identical SHA-256), plus info area and RAM, into `backup/`.
+- Mistake made and fixed: experiment scripts left an FPB breakpoint and halting debug enabled after the link died;
+  since those survive NRST, the unit stayed dark until `tools/fm33_clear_debug.tcl` cleared them under NRST hold.
+- `fm33-stlink.cfg` rewritten (swd transport, mem_ap, halt-on-reset procs, still no flash bank).
+
+## 2026-10-25: why SWD dies under the stock firmware (resolved)
+- Located live with FPB breakpoints (`tools/swd_bisect.tcl`): SWD dies inside board GPIO init 0x6B64, which sets
+  PD0/PD1/PD7/PD8 as push-pull outputs driven low. A whole-image search shows PD7/PD8 are never used again →
+  parked "unused" pins, no hardware function. DeepSleep (power-off only) is not the cause.
+- Open curiosity: pad 2 read 0 V with NRST held, despite the datasheet's ~100 kΩ SWDIO pull-up in reset.
+
+## 2026-10-25: Phase 2b, static analysis
+- Installed: FMSH FM33LC0XX_DFP 3.0.4 (`vendor/`; from FMSH's own server, linked on keil.arm.com; the keilpack
+  mirror returned BlobNotFound), Ghidra 12.2 + JDK 25, Unicorn. See `analysis-tools.md`.
+- Soft-float helpers identified by emulation; dose formula, calibration ranges, defaults (C1=C2=1.0), timing
+  (LPTIM 204.8 Hz, window really 1.953 s) and all peripheral configs derived by emulating the firmware's own code.
+- Finding: the stock firmware never writes flash; settings and the 10 records live in RAM (DeepSleep retention).
+
+## 2026-10-25: bench session (user)
+- Keys: left PA15 (QFN 5), OK/power PA10 (QFN 8), right PD11 (QFN 29).
+- HV: PC5 (QFN 20) → 200 Ω → N-FET → 160 kΩ → LM3478 FA/SD (47 kΩ pull-up to HVbatt): PC5 high = converter runs.
+  PC4 (QFN 19) → N-FET → P-FET: VBAT → HVbatt. PB14 (QFN 16) → P-FET → LCD supply.
+- PC2/PC3: anti-parallel bi-colour LED. 8002A SD → GND; input ← PB10 via coupling cap + 20 kΩ.
+- PA9 (QFN 7): USB 5 V divider (series resistor marked "560"), same net as the 4057 charger VIN. PA13/PA14: no tracks.
+- Battery divider: 2.1970 V out at 4.040 V battery → 0.5438 (stock firmware assumes 0.55).
+- HV: 314 V at the multiplier, 233 V at the tube after the 4.7 MΩ anode resistor (multimeter) → ≈ 425 V
+  open-circuit behind ≈ 3.5 MΩ, assuming a 10 MΩ meter (estimate).
+- "Dead tube" scare: a solder bridge QFN 5–6 (PA15 key ↔ PA8 GM input) held PA8 at ~0.5 V, under the 0.6 V
+  threshold. After removing it: pulses ≈ 2.1 V peak, ≈ 60 µs decay; the stock firmware counts normally.
+- Lesson: QFN-32 is fine-pitch; probe with a sharp tip and re-inspect for bridges afterwards.
+
+## Decisions
+- Analysis only via backup + emulation; no live register snapshots (stock firmware blocks SWD).
+- Rad Pro must keep PD7/PD8 as SWD.
+- Next: Phase 4 (`phase4-plan.md`). Flashing requires the user's explicit "erase it".
+
+## 2026-10-25: Phase 4 start, Rad Pro repo check
+- Cloned github.com/Gissio/radpro into `radpro/` (shallow, commit c7454800, "3.1.2test2", 2026-07-28).
+- Structure matches `phase4-plan.md`: `platform.io/src/{peripherals,stm32,sdl,system,ui,measurements}`,
+  `lib/stm32/stm32-ext.h` (2213 lines), `lib/mcu-renderer` (ST7789), per-device `src/stm32/gc03.c/.h`.
+- Build: `[base]` uses `platform = ststm32`, `framework = cmsis`, qfplib soft-float via `--defsym`; devices are
+  selected by `-D<DEVICE>` + feature flags (`DISPLAY_240X320`, `DISPLAY_COLOR`, `TUBE_HV_PWM`, `BUZZER`, ...);
+  board JSONs carry `FLASH_BASE_/FLASH_SIZE_/FLASH_PAGE_SIZE`. GC-01 (240×320 colour) runs in 20 KB RAM → 24 KB is fine.
+- `TUBE_HV_PWM` = the HV-profile menu (frequency/duty on a timer pin). The UT334A's PC5 is a run/stop gate for the
+  LM3478, not a switching signal, so this flag probably does not fit (decision pending).
+- PlatformIO present (`~/.platformio/penv/Scripts/pio.exe`, gcc-arm toolchain installed).
+
+## 2026-10-25: Phase 4 decisions (user)
+- HV: no `TUBE_HV_PWM` / HV-profile menu; PC5 gated in software like stock (~41 Hz, ~20 %, burst after each pulse).
+- Comm: user will wire PA13/PA14 to a CH340 fed from the on-board USB-C. Datasheet: PA13 = UART0_RX,
+  PA14 = UART0_TX (also LPUART0); only PB12 is 5 V tolerant, VDD is 3.0 V → CH340 I/O must run at 3.3 V.
+  Without `DATA_MODE`, Rad Pro opens comm while USB power is present (PA9), which fits a VBUS-powered CH340.
+- Repo: own repo for the port (layout/visibility pending).
+- Repos: public fork github.com/MazenGomaa/radpro-ut334a (branch `ut334a`, default branch; port code + `ut334a/`
+  with copies of docs/tools via `tools/sync_to_fork.sh`); private github.com/MazenGomaa/ut334a-research (this
+  workspace: backup, analysis, vendor, datasheets). The stock firmware is not published (UNI-T copyright); the fork
+  tells users to dump their own unit first. Workspace `docs/`/`tools/` are the master copies.
+- Features: drop chess game, vibrator, voice, EMF, HV profiles, pulse-sound enable, removable battery, bootloader,
+  USB auto power-on, data mode. Keep everything else; pulse/alert share the bi-colour LED. English first.
+- USB-C D+/D- are not connected on the board; the user will jumper them to the CH340.
+- Clone question: a web search found no source naming another maker's device as the UT334A's origin (open).

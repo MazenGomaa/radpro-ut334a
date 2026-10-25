@@ -1,3 +1,9 @@
+> **UNI-T UT334A port (unofficial fork).** This fork adds Rad Pro support for the UNI-T UT334A Geiger counter
+> (Fudan FM33LC043N). The port was written with Claude (Anthropic's AI assistant) from a reverse-engineered map of
+> the hardware, made by decompiling and emulating the stock firmware and confirming the findings on the bench. It is
+> experimental: **dump your own unit's stock firmware before flashing** (see [`ut334a/`](ut334a/)). Not affiliated
+> with UNI-T or with the upstream Rad Pro project. Upstream: [Gissio/radpro](https://github.com/Gissio/radpro).
+
 [![Rad Pro Simulator - Try me!](https://gissio.github.io/radpro-simulator/radpro-title-tryme.png)](https://gissio.github.io/radpro-simulator/)
 
 [![License](https://img.shields.io/github/license/Gissio/radpro)](https://github.com/Gissio/radpro/blob/main/LICENSE)
