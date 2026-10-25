@@ -89,9 +89,17 @@ static bool displayEnabled;
 
 static uint8_t displayTextbuffer[88 * 88];
 
-// Panel settings of the stock firmware (0x5960), sent after mcu-renderer's reset, SLPOUT, COLMOD and
-// MADCTL (rotation 0 = MADCTL 0x00, as stock). The stock RAMWRC (0x3C) without data is left out.
+// Panel settings of the stock firmware (0x5960), sent after mcu-renderer's reset. mcu-renderer sends
+// COLMOD and MADCTL while the panel is still in sleep, and this panel ignores COLMOD there (it stays at
+// the 18-bit default: text repeated 3x, striped greys), so as stock: SLPOUT, 120 ms, then MADCTL and
+// COLMOD 0x05. The stock RAMWRC (0x3C) without data is left out.
 static const uint8_t displayInitSequence[] = {
+    MR_SEND_COMMAND(MR_ST7789_SLPOUT),
+    MR_SLEEP(120),
+    MR_SEND_COMMAND(MR_ST7789_MADCTL),
+    MR_SEND_DATA(0x00),
+    MR_SEND_COMMAND(MR_ST7789_COLMOD),
+    MR_SEND_DATA(0x05),
     MR_SEND_COMMAND(MR_ST7789_IDMOFF),
     MR_SEND_COMMAND(MR_ST7789_WRDISBV),
     MR_SEND_DATA(0x00),
