@@ -27,6 +27,8 @@ void SysTick_Handler(void)
 {
     currentTick++;
 
+    onTubeHVTick();
+
     onTick();
 }
 

@@ -112,3 +112,33 @@ Facts live in `ut334a-hardware.md` (hardware), `swd-access.md` (debug access), `
 - `tools/fw_emu.py`: runs our build from reset with simulated SysTick. Boot without a key: battery screen 5 s →
   DeepSleep at tick 5003; wake → PLL restart → re-sleep; a held key prevents DeepSleep.
 - **Not flashable yet**: the stub display leaves the renderer callbacks NULL (would hard-fault). Step C first.
+
+## 2026-10-25: Phase 4 step C, hardware drivers (done except comm; emulator-verified, not on hardware)
+All register values copied from emulating the stock routines (`tools/stock_trace.py`) or the FMSH flash algorithm.
+- Display (`ut334a.c`): SPI1 master TX-only, BAUD 0 = 32 MHz, 8-bit (stock 0xBA90); PB9/PB11 digital function,
+  DFS 0. mcu-renderer ST7789 (reset, SLPOUT, COLMOD, MADCTL 0) + stock panel bytes (0x5960) incl. INVON. LCD supply
+  PB14 low before init. Text buffer 88×88 (RAM 11.9 KB total). No DMA (GC-03 does without).
+- Backlight (`fm33_display.c`): ATIM PSC 1/ARR 9999 (3.2 kHz), OC1M 111, CH1N only, MOE; PB2 DFS2 = ATIM_CH1N;
+  Rad Pro's gamma table on CCR1. **To check on the bench: polarity, and whether the backlight needs PC4 (stock
+  turns PC4 on before the LCD).**
+- Keys: FS5000-style 3-key hooks.
+- Tube (`fm33_tube.c`): COMP2 INP1 (PA8) vs VREF/2, CMP2DF, rising-edge IRQ (CMP2SEL 01), priority 0; BSTIM32
+  free-running 1 MHz for Rad Pro's pulse timing. HV from SysTick: PC5 5 ms on / 19 ms off (24 ms) + 3 ms after
+  every pulse (stock: until its next 4.9 ms tick). `setTubeHVEnabled` also switches PC4 and the comparator.
+  `readTubeDet` = CMP2O (stuck high = shorted tube).
+- Buzzer: GPTIM0 PSC 2/ARR 13399 (1.592 kHz, stock), PWM mode 1, PB10 DFS10 = GPTIM0_CH1; **`-DBUZZER_VOLUME`
+  enabled** (Rad Pro volume menu; the stock firmware also sets volume by duty).
+- LED: plain GPIO on PC3 (pulse) / PC2 (alert); LED_MULTIPLEX keeps them from being on together.
+- Battery ADC (`fm33_adc.c`): stock FL_ADC setup (RCHF/8 = 1 MHz, OVSEN 16×, SMTR 0xB77), IN9 vs VREF channel via
+  VREF_BUFCR, VREF_CAL 0x1FFFFB08 (complement-checked), divider 0.5438. PC4 switched on for 5 ms if off (settle time
+  to check). Charging = USB && < 4.1 V, as stock.
+- Flash (`fm33_flash.c`): vendor FLM (disassembled): FLASH_PCE + OPCCR2.FLASHCKE, page erase (ERTYPE 00, keys
+  0x96969696/0xEAEAEAEA, 0x1234ABCD into the page, ERD), program (keys 0xA5A5A5A5/0xF1F1F1F1, 32-bit, PRD), KEY = 0
+  after each op. FLM DevDscr confirms **512-byte erase units**. Refuses anything below STATES_BASE (0x20000).
+  `verifyFlash`: software CRC-32/MPEG-2 (nibble table), checked equal to `tools/sign.py` on random data;
+  env added to `sign.py`. Flash images to use are the signed ones (`sign.py` output).
+- Emulator (`tools/fw_emu.py`) now models FLS/SPI/ADC and can hold/release keys and inject pulses. Results:
+  OK held 1.3 s → splash → measuring: PC4 on, COMP2 on, PC5 5/19 ms; pulses counted, click + LED, burst extended;
+  unsigned image → checksum alarm, signed → none; first boot erases/writes the settings and datalog pages.
+- Sizes: en 52 KB, zh_CN 77 KB (slot 128 KB); RAM 11.9 KB / 24 KB. GC-03, FS5000, FS2011 still build.
+- Left for later: comm (UART0 on PA13/PA14, after the CH340 mod); LCD supply cut in power-off (now SLPIN only).

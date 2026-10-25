@@ -29,12 +29,24 @@
 #define PWR_BAT_PORT GPIOC
 #define PWR_BAT_PIN 8
 #define PWR_BAT_CHANNEL 9
-#define PWR_BAT_SCALE_FACTOR (1.0F / 0.5438F)
+#define PWR_BAT_SCALE_FACTOR (1.0F / 0.5438F) // divider measured on the bench (stock firmware: 0.55)
+#define PWR_BAT_SETTLE_US 5000 // divider is on HVbatt: settle time after switching PC4 on (to verify)
+#define PWR_BAT_CHARGING_VOLTAGE 4.1F // stock: USB powered and below 4.1 V = charging
 
 #define TUBE_HV_PORT GPIOC
 #define TUBE_HV_PIN 5
+// HV: PC5 gates the LM3478 (high = run). Stock: on 1 tick in 5 of its 204.8 Hz tick (4.9 ms every 24.4 ms,
+// 41 Hz, 20 %), plus on after each GM pulse until its next tick (0..4.9 ms). At our 1 kHz tick:
+#define TUBE_HV_PERIOD_TICKS 24
+#define TUBE_HV_ON_TICKS 5
+#define TUBE_HV_PULSE_TICKS 3
+// GM pulses: PA8 = COMP2_INP1 vs VREF/2 = 0.6 V, digital filter, rising edge
 #define TUBE_DET_PORT GPIOA
 #define TUBE_DET_PIN 8
+#define TUBE_DET_COMP COMP2
+#define TUBE_DET_IRQ COMPx_IRQn
+#define TUBE_DET_IRQ_HANDLER COMPx_IRQHandler
+#define TUBE_DET_TIMER BSTIM32
 
 #define KEY_LEFT_PORT GPIOA
 #define KEY_LEFT_PIN 15
@@ -62,11 +74,19 @@
 #define DISPLAY_POWER_ACTIVE_LOW
 #define DISPLAY_BACKLIGHT_PORT GPIOB
 #define DISPLAY_BACKLIGHT_PIN 2
+#define DISPLAY_BACKLIGHT_DFS true // PB2 second digital function = ATIM_CH1N
 #define DISPLAY_BACKLIGHT_TIMER ATIM
+// Stock: PSC = 1, ARR = 9999 -> 3.2 kHz
+#define DISPLAY_BACKLIGHT_TIMER_PRESCALER 2
+#define DISPLAY_BACKLIGHT_TIMER_PERIOD 10000
 
 #define BUZZER_PORT GPIOB
 #define BUZZER_PIN 10
+#define BUZZER_DFS true // PB10 second digital function = GPTIM0_CH1
 #define BUZZER_TIMER GPTIM0
+// Stock tone: PSC = 2, ARR = 13399 -> 1.592 kHz (8002A amplifier and speaker)
+#define BUZZER_TIMER_PRESCALER 3
+#define BUZZER_TIMER_PERIOD 13400
 
 // Bi-colour LED between PC2 and PC3: PC3 high = colour A (stock: pulses), PC2 high = colour B (stock: alarm)
 #define PULSE_LED_PORT GPIOC

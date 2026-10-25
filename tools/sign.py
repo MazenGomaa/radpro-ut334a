@@ -160,6 +160,7 @@ envs = [
     "fnirsi-gc03",
     "gq-gmc800",
     "gq-gmc800v2",
+    "uni-t-ut334a",
 ]
 
 for env in envs:

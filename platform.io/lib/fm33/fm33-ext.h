@@ -48,6 +48,24 @@ __STATIC_INLINE void rcc_enable_exti(void)
     set_bits(RCC->OPCCR1, RCC_OPCCR1_EXTICKE_Msk | RCC_OPCCR1_EXTICKS_Msk);
 }
 
+__STATIC_INLINE void rcc_enable_spi1(void)
+{
+    set_bits(RCC->PCLKCR3, RCC_PCLKCR3_SPI1_PCE_Msk);
+}
+
+// ATIM kernel clock: APBCLK (ATCKS = 0), as in the stock firmware
+__STATIC_INLINE void rcc_enable_atim(void)
+{
+    set_bits(RCC->PCLKCR4, RCC_PCLKCR4_AT_PCE_Msk);
+    modify_bits(RCC->OPCCR1, RCC_OPCCR1_ATCKE_Msk | RCC_OPCCR1_ATCKS_Msk, RCC_OPCCR1_ATCKE_Msk);
+}
+
+__STATIC_INLINE void rcc_disable_atim(void)
+{
+    clear_bits(RCC->OPCCR1, RCC_OPCCR1_ATCKE_Msk);
+    clear_bits(RCC->PCLKCR4, RCC_PCLKCR4_AT_PCE_Msk);
+}
+
 // GPIO
 
 #define GPIO_PULL_FLOATING 0
@@ -98,9 +116,21 @@ __STATIC_INLINE void gpio_setup_analog(GPIO_Type *base, uint8_t pin)
     gpio_setup(base, pin, GPIO_FUNCTION_ANALOG, false, GPIO_OUTPUTTYPE_PUSHPULL, GPIO_PULL_FLOATING);
 }
 
+// GPIOx_DFS: second digital function of a pin (datasheet 34.8.9)
+__STATIC_INLINE void gpio_setup_af_dfs(GPIO_Type *base, uint8_t pin, uint8_t output_type, uint8_t pull, bool dfs)
+{
+    gpio_modify_bit(&base->DFS, pin, dfs);
+    gpio_setup_af(base, pin, output_type, pull);
+}
+
 __STATIC_INLINE bool gpio_get(const GPIO_Type *base, uint8_t pin)
 {
     return (base->DIN >> pin) & 1;
+}
+
+__STATIC_INLINE bool gpio_get_output(const GPIO_Type *base, uint8_t pin)
+{
+    return (base->DO >> pin) & 1;
 }
 
 __STATIC_INLINE void gpio_set(GPIO_Type *base, uint8_t pin)
@@ -132,6 +162,30 @@ __STATIC_INLINE void gpio_enable_wakeup(uint8_t wkup, bool rising_edge)
 __STATIC_INLINE void gpio_disable_wakeup(uint8_t wkup)
 {
     clear_bits(GPIO->PINWKEN, 1U << (GPIO_COMMON_PINWKEN_EN0_Pos + wkup));
+}
+
+// SPI (datasheet 22): master, transmit only, 8-bit frames, CPOL = CPHA = 0, MSB first
+
+#define SPI_BAUD_DIV2 0b000
+
+__STATIC_INLINE void spi_setup_master_tx(SPI_Type *base, uint32_t baud)
+{
+    base->CR2 = 0;
+    base->CR1 = SPI_CR1_MM_Msk | (baud << SPI_CR1_BAUD_Pos);
+    base->CR3 = SPI_CR3_TXBFC_Msk;
+    base->CR2 = SPI_CR2_TXO_Msk | SPI_CR2_SPIEN_Msk;
+}
+
+__STATIC_INLINE void spi_send(SPI_Type *base, uint32_t value)
+{
+    wait_until_bits_set(base->ISR, SPI_ISR_TXBE_Msk);
+    base->TXBUF = value;
+}
+
+__STATIC_INLINE void spi_wait_while_busy(SPI_Type *base)
+{
+    wait_until_bits_set(base->ISR, SPI_ISR_TXBE_Msk);
+    wait_until_bits_clear(base->ISR, SPI_ISR_BUSY_Msk);
 }
 
 // IWDT (datasheet 9.6)

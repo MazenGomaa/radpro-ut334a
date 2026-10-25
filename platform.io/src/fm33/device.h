@@ -17,3 +17,6 @@
 // fm33_system.c
 void initSystemClock(void);
 void startSystemPLL(void);
+
+// fm33_tube.c
+void onTubeHVTick(void);

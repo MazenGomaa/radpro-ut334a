@@ -43,11 +43,6 @@ bool isUSBPowered(void)
     return gpio_get(PWR_USB_PORT, PWR_USB_PIN);
 }
 
-bool isBatteryCharging(void)
-{
-    return false;
-}
-
 bool wasResetByWatchdog(void)
 {
     return get_bits(RCC->RSTFR, RCC_RSTFR_IWDTN_FLAG_Msk);
