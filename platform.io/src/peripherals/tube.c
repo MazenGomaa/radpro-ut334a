@@ -26,6 +26,9 @@ static cstring tubeTypeStrings[] = {
     STRING_SBM20,
     STRING_SI3BG,
     STRING_LND7317,
+#if defined(UT334A)
+    "UT334A",
+#endif
 };
 
 static const float tubeSensitivities[] = {
@@ -35,6 +38,11 @@ static const float tubeSensitivities[] = {
     106.105F,
     3.267F,
     252.567F,
+#if defined(UT334A)
+    // Stock UT334A calibration, low band (< 0.8 uSv/h: k = 0.9, 66.7 CPM per uSv/h), corrected for the stock
+    // 1.953 s window counted as 2 s. Stock uses 46.1 from 0.8 to 20 uSv/h and 39.9 above.
+    68.27F,
+#endif
 };
 
 static const uint8_t tubeSourceFactors[][14] = {
@@ -44,6 +52,10 @@ static const uint8_t tubeSourceFactors[][14] = {
     {108, 95, 169, 103, 126, 207, 100, 105, 110, 110, 100, 198, 92, 108},
     {108, 125, 153, 93, 113, 77, 107, 106, 108, 112, 89, 0, 128, 109},
     {108, 107, 154, 104, 127, 167, 107, 111, 114, 113, 108, 161, 107, 115},
+#if defined(UT334A)
+    // Tube model unknown: M4011 factors
+    {108, 113, 204, 107, 173, 236, 111, 118, 124, 123, 113, 196, 110, 123},
+#endif
 };
 
 static const Menu tubeMenu;
@@ -124,7 +136,7 @@ static float getTubeSensitivityForIndex(uint32_t index)
 
 const char *getTubeType(void)
 {
-    return getString(tubeTypeStrings[getTubeIndex()]);
+    return getString(tubeTypeStrings[settings.tubeType]);
 }
 
 float getTubeSensitivity(void)

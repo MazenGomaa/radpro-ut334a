@@ -126,9 +126,13 @@ void RTC_IRQHandler(void)
     RTC->ISR = RTC_ISR_SEC_IF_Msk;
 }
 
+// Woken up on RCHF 8 MHz with the PLL off. The PLL is restarted only when leaving the powered-off loop, not
+// after each RTC 1 s wake-up.
 static void enterDeepSleep(void)
 {
-    setDeepSleepWakeup(true);
+    // As stock (0xA884): BOR off while asleep (1.2 uA typ.), PDR stays on (never both off)
+    uint32_t borcr = RMU->BORCR;
+    RMU->BORCR = borcr | RMU_BORCR_OFF_BOR_1P2_Msk;
 
     // Datasheet 4.2.6: SLPDP (VREF off) + PMOD = Sleep, SLEEPDEEP must stay clear, then WFI
     PMU->CR = PMU_CR_SLPDP_Msk | (0b10 << PMU_CR_PMOD_Pos);
@@ -136,10 +140,7 @@ static void enterDeepSleep(void)
     __WFI();
     PMU->CR = 0;
 
-    // Woken up on RCHF 8 MHz with the PLL off
-    startSystemPLL();
-
-    setDeepSleepWakeup(false);
+    RMU->BORCR = borcr;
 }
 
 // Charging indicator while off, as stock (0x26F4): pulse LED colour on while isBatteryCharging() (USB power,
@@ -185,12 +186,18 @@ void sleepWhilePoweredOff(void)
 
     parkDisplay();
 
+    setDeepSleepWakeup(true);
+
     while (canEnterDeepSleep())
     {
         iwdt_reload();
 
         enterDeepSleep();
     }
+
+    setDeepSleepWakeup(false);
+
+    startSystemPLL();
 }
 
 #endif
