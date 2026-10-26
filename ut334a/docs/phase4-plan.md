@@ -22,17 +22,20 @@ not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scrat
 nothing was erased: battery off 5 s, retry.
 
 Next session, in order (stop for confirmation after each):
-1. Flash `7250c07` (after "erase it"). Check: USB while off → green LED stays on (≈ 10 min with a nearly full
+1. Flash the current fork build (after "erase it"): `7250c07` + UT334A tube preset + BOR off in DeepSleep and
+   one PLL restart per wake = fork `ca3f85a` (see the notes, 2026-10-26). Check: USB while off → green LED stays on (≈ 10 min with a nearly full
    battery, longer when lower), off on unplugging; charging icon while on. Double-press left while off shows
    the battery (not checked yet).
 2. **Off-state current** with a meter in series with the battery (stock lasted months, so µA range expected).
-   If high: compare with stock parking (0xA884 also parks PC8, PA8 open-drain; ADC/COMP/LPTIM off).
+   Datasheet: ≈ 2 µA typ. DeepSleep with BOR off. If high: PC8/PA8 as stock (open-drain outputs), backlight
+   supply path, the 1 s RTC wake-ups (stock does not use them).
 3. Settings + datalog survive a battery disconnect (flash writes now work); RTC across power-off / disconnect.
 4. Alarm buzzer: user reported it "not right" (details still to get); check alert/pulse volume levels.
 5. Battery voltage: Rad Pro 4.073 V vs meter 4.029 V (+1.1 %); take a second point (not while charging), then
    adjust `PWR_BAT_SCALE_FACTOR` (divider 0.5438 → ≈ 0.5497).
 6. Off-state charging screen only appears after a key press (USB wake while off).
-7. GM: counts vs stock on the same background; HV at the tube (HV probe only); calibration.
+7. GM: the "UT334A" preset (68.27 CPM per µSv/h, stock low band) should read as stock at background; compare
+   with a reference above 0.8 µSv/h if possible (stock uses 46.1 there); HV at the tube (HV probe only).
 8. Optional: faster drawing (SPI DMA / 16-bit frames as stock); fixed 5 s averaging option.
 9. Later: comm over UART0 (PA13 RX / PA14 TX) after the CH340 mod (data export, streaming).
 

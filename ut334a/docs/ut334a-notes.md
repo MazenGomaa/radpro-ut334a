@@ -293,3 +293,24 @@ All register values copied from emulating the stock routines (`tools/stock_trace
 - `fw_emu.py`: `EMU_USB=tick` (PA9 high), `EMU_BAT=tick:raw` (IN9 step; 2640 ≈ 3.9 V, 2830 ≈ 4.18 V).
   Test build with a 20 s hold, USB from 0, 4.18 V from 15 s: PC3 set at 0.37 s, cleared at 35.0 s. Release build
   (600 s, image SHA-256 56e735f7…): boot → off → wake run clean, 0 key-error locks. Not flashed.
+
+## 2026-10-26: stock features not yet in the port; UT334A tube preset; power-off parking (offline)
+- Review of the stock image against the port. Gaps: (1) calibration, (2) part of the power-off parking,
+  (3) display DMA (optional). Replaced on purpose by Rad Pro: rate algorithm, low-battery cut-off (stock
+  3.35 V, Rad Pro 3.0 V), gauge, hidden C1/C2 menu, alarm patterns, timers, Chinese font.
+- **Tube preset "UT334A"** (user decision: use the stock calibration), new default tube type for the UT334A
+  builds: 68.27 CPM per µSv/h = stock low band (k = 0.9 → 66.7) corrected for the 1.953 s window counted as
+  2 s. A single value: stock reads 1.48× higher from 0.8 to 20 µSv/h (46.1) and 1.71× above (39.9). Source
+  factors copied from M4011 (tube model unknown). Was M4011 (108.3) → background readings rise ×1.59
+  (9 CPM ≈ 0.13 µSv/h, as stock). Flashing erases the settings page, so the new default applies.
+  Also fixed upstream `getTubeType()` (indexed the names by the sensitivity index: LND 7317 reported as SI3BG).
+- Stock `0xA884` decoded (register-level): see the hardware map, §7. Versus the port: COMP2 (tube off), ADC
+  (off after each conversion), LPTIM/DMA/SVD (unused) already match. PC8/PA8: stock open-drain outputs, port
+  analog (input buffer off): no current difference expected, left as is. VREF: DeepSleep turns it off.
+- Port changes: BOR off during DeepSleep as stock (BORCR |= OFF_BOR_1P2, restored after wake; PDR stays on).
+  PLL restarted once on leaving the off loop instead of after every RTC 1 s wake (port-only overhead; stock
+  does not wake every second). Emulator: 1633 sleep entries 5.37–7.0 s, BORCR 0x0F/0x0E around each, PLL
+  restarted only at 7.0 s (OK held), clean frame after wake, 0 key-error locks. Not flashed; off-state current
+  still to measure (bench step 2). Fork commit `ca3f85a`.
+- Stock has no energy (source) correction: only the three rate bands and C1/C2. With Rad Pro's default source
+  (Cs-137, factor 1.0) the UT334A preset behaves as stock; the copied M4011 factors apply only to other sources.

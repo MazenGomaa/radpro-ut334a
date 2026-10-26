@@ -179,7 +179,7 @@ There is no MCU PWM for the HV supply (no timer drives a pin other than PB2 back
 | External power | PA9 high (debounced 10 ms) powers the unit up and keeps it awake | [S 0xC974] |
 | Charger | 6-pin 4057 (TP4057-class) Li-ion charger, VIN on USB 5 V; its status pins are not read by the MCU | [B], [S] |
 | Power key | PA10 held ≥ 600 ticks (2.9 s) → `0x7780` (power toggle) | [S 0x2484] |
-| Power off | `0xA884`: park pins (see §2), ADC/COMP/LPTIM off, PMU_CR = Sleep+SLPDP (DeepSleep), `WFI`. Wake sources: EXTI on PA9 (USB) and, most likely, the RTC 1 s interrupt (enabled in 0x8330, handler 0x7830), after which the main loop polls PA10 (hold ~3 s → 0x7780 toggles the off flag 0x20000000). No physical power switch [B] | [S 0xA884, 0x8330, 0x7780], [E 0x4F68] |
+| Power off | `0xA884`: park pins (see §2; PC8, PA8 and PB9/PB11 as open-drain outputs), PDR on + **BOR off** (BORCR.OFF_BOR_1P2, 1.2 µA typ. per datasheet), IWDT FREEZE set (ineffective: option bytes forbid it), VREF CR.EN cleared, ADC, COMP2, LPTIM, DMA off, **RTC SEC_IE cleared**, PMU_CR = Sleep+SLPDP (DeepSleep), `WFI`. So stock does not wake every second: wake by EXTI on PA9 (USB), key, or (unconfirmed) the IWDT reset with the off flag kept in RAM; the main loop polls PA10 (hold ~3 s → 0x7780 toggles the off flag 0x20000000). No physical power switch [B] | [S 0xA884, 0x7780], [E 0x4F68], [DS 8.8.2, 3.4.2.5] |
 | Auto power-off / screen sleep | settings in hours (×7200 half-seconds) and minutes (×120) | [S 0xDC68] |
 
 There is no separate power-latch pin: "off" is MCU DeepSleep with RAM and RTC retained. PC4 switches the HVbatt rail (HV converter + battery divider),
