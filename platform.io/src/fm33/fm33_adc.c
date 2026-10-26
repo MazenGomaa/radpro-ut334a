@@ -17,6 +17,7 @@
 #include "../fm33/device.h"
 #include "../peripherals/adc.h"
 #include "../system/power.h"
+#include "../system/events.h"
 
 #define VREF_CAL_ADDRESS 0x1FFFFB08
 #define VREF_CAL_VDDA 3.0F
@@ -115,9 +116,25 @@ float readBatteryVoltage(void)
     return batteryVoltage;
 }
 
+// As stock (0x26F4): charging starts on USB power below the threshold, and ends when USB is removed or the
+// battery has stayed at or above it for the hold time (the charge current lifts the voltage above 4.1 V).
+// USB power keeps the MCU out of DeepSleep, so SysTick runs throughout.
 bool isBatteryCharging(void)
 {
-    return isUSBPowered() && (batteryVoltage < PWR_BAT_CHARGING_VOLTAGE);
+    static bool batteryCharging;
+    static uint32_t belowThresholdTick;
+
+    if (!isUSBPowered())
+        batteryCharging = false;
+    else if ((batteryVoltage > 0.0F) && (batteryVoltage < PWR_BAT_CHARGING_VOLTAGE))
+    {
+        batteryCharging = true;
+        belowThresholdTick = currentTick;
+    }
+    else if ((currentTick - belowThresholdTick) >= PWR_BAT_CHARGING_HOLD_TICKS)
+        batteryCharging = false;
+
+    return batteryCharging;
 }
 
 #endif

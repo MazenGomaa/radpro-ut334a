@@ -142,8 +142,8 @@ static void enterDeepSleep(void)
     setDeepSleepWakeup(false);
 }
 
-// Charging indicator while off, as stock (0x26F4): pulse LED colour on while on USB power and the battery
-// is below the charging threshold. Rad Pro owns the LED while powered on.
+// Charging indicator while off, as stock (0x26F4): pulse LED colour on while isBatteryCharging() (USB power,
+// below the threshold, with the stock hold time). Rad Pro owns the LED while powered on.
 #define CHARGING_CHECK_TICKS (5 * SYSTICK_FREQUENCY)
 
 static bool chargingLED;

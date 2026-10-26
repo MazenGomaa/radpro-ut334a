@@ -32,6 +32,7 @@
 #define PWR_BAT_SCALE_FACTOR (1.0F / 0.5438F) // divider measured on the bench (stock firmware: 0.55)
 #define PWR_BAT_SETTLE_US 5000 // divider is on HVbatt: settle time after switching PC4 on (to verify)
 #define PWR_BAT_CHARGING_VOLTAGE 4.1F // stock: USB powered and below 4.1 V = charging
+#define PWR_BAT_CHARGING_HOLD_TICKS (600 * SYSTICK_FREQUENCY) // stock: 300 battery windows (~10 min) at or above it
 
 #define TUBE_HV_PORT GPIOC
 #define TUBE_HV_PIN 5
