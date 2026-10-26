@@ -123,7 +123,12 @@ void boot(void)
         powerOn();
     else if (!isPowerKeyDown())
     {
+#if defined(POWER_OFF_SLEEP)
+        // Boot is a battery connection, not a USB plug-in
+        if (settings.powerUSBAutoPowerOn && isUSBPowered())
+#else
         if (settings.powerUSBAutoPowerOn)
+#endif
             powerOn();
         else
             powerOffWithBatteryIndicator(true);
@@ -335,6 +340,12 @@ void updatePowerState(void)
 
     if (!power.previousUSBPowered && usbPowered)
     {
+#if defined(POWER_OFF_SLEEP) && defined(USB_AUTOPOWER_ON)
+        // The MCU stays powered while off, so a USB plug-in does not boot it
+        if (!power.poweredOn && settings.powerUSBAutoPowerOn)
+            powerOn();
+#endif
+
         requestBacklightTrigger();
         triggerVibration();
     }
