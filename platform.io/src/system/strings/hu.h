@@ -101,6 +101,7 @@
 #define STRING_ALERT_DONE "KÉSZ"
 
 // History period strings
+#define STRING_HISTORY_3_MINUTES "3 p"
 #define STRING_HISTORY_10_MINUTES "10 p"
 #define STRING_HISTORY_1_HOUR "1 ó"
 #define STRING_HISTORY_1_DAY "1 n"

@@ -17,10 +17,13 @@
 extern const Menu averageMenu;
 
 void resetAverageRate(void);
+void clearAverageRate(void);
 
 void updateAverageRate(PulsePeriod *period);
 
 float getAverageRate(void);
+uint32_t getAverageRateTime(void);
+bool isAverageRateDone(void);
 
 void onAverageRateViewEvent(ViewEvent event);
 

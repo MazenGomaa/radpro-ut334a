@@ -34,8 +34,6 @@ typedef enum
     INSTANTANEOUS_TAB_ALERT = INSTANTANEOUS_TAB_NUM,
 } InstantaneousTab;
 
-static void clearInstantaneousRate(void);
-
 static const uint8_t instantaneousMinTimes[] = {0, 5, 60, 30, 10};
 
 static struct
@@ -63,7 +61,7 @@ void resetInstantaneousRate(void)
     selectMenuItem(&instantaneousMenu, settings.instantaneousAveraging);
 }
 
-static void clearInstantaneousRate(void)
+void clearInstantaneousRate(void)
 {
     memset(&instantaneous, 0, sizeof(instantaneous));
 
@@ -184,6 +182,16 @@ void updateInstantaneousRate(uint32_t periodTick, PulsePeriod *period)
 float getInstantaneousRate(void)
 {
     return instantaneous.rate.value;
+}
+
+float getInstantaneousRateConfidence(void)
+{
+    return instantaneous.rate.confidence;
+}
+
+float getInstantaneousRateMax(void)
+{
+    return instantaneous.maxValue;
 }
 
 float getDeadTimeCompensationFactor(void)

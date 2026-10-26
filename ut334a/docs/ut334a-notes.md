@@ -404,3 +404,35 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   the backlight flash and a steady buzzer tone (alertTicks) together, and `setBuzzerTimer()` ignores shorter
   pulse clicks while it runs, so silent clicks during each flash mean the alert tone was on but inaudible
   (volume / drive). To check: Settings → Sound → alert volume (selecting a level plays the alarm).
+
+## 2026-10-26: Overview screen (stock-style all-in-one), emulator only
+- New measurement view `measurements/overview.c` (flag `MEASUREMENT_OVERVIEW`, UT334A only), first in the view list
+  for now: instantaneous rate large (with unit, confidence, alert colours), then Average and Cumulative rows with
+  elapsed time. All in the primary dose unit (Sv/rem/cpm/cps). Title reuses STRING_MEASUREMENTS (no new strings).
+- The medium colour font only had unit glyphs: `build-fonts.py` now adds `.0-9` and U+2012 to it (fontconv output
+  reproduced the old font byte for byte first). en +1 KB. Romanian fonts were stale upstream; left untouched.
+- Text bands sized to the full glyphs (g/µ descenders, accents); row units in the small font (medium has no space);
+  a too-long key is clipped with an ellipsis before the time (uk "Накопичувальний").
+- `fw_emu.py`: `EMU_POKE=tick:sym+off:mask:value` (settings: doseUnits = word 0 bits 13-14, displayTheme = word 3
+  bits 3-4). Checked Day/Dusk/Night, cpm, uk, el. Not flashed, not committed.
+- Separators in COLOR_INSTRUMENT_FRAME_TERTIARY (the title-bar shadow colour vanished in Dusk/Night); upper line
+  4 px higher (confidence band 20 px), second line between Average and Cumulative (user request).
+- Screen order (user choice "Overview tabs"): Up/Down cycles Overview ↔ History only (Instantaneous/Average/
+  Cumulative views out of the cycle under MEASUREMENT_OVERVIEW). OK cycles the Overview's lower area: Average +
+  Cumulative → Max + rate in the secondary unit → bar (→ FAULT when the tube fault alert is on). Reset (Left held
+  1 s) clears rate + max, average and cumulative, as stock "Delete Current Data". Rate/dose alerts while the
+  display is off switch to the Overview. Emulator: real OK press → Max tab, Right → History, Reset → 00:02 and
+  0.000 µSv 2 s later. FS2011/FS5000/GC-03/GMC-800 still build. Not flashed, not committed.
+- History: new first tab "3 min" (flag HISTORY_3_MINUTES, UT334A only): 1 s per point, 200 points = 200 s window,
+  ticks every 20 s; label generated from each language's "10 min" string (30 files, +1 line each). RAM +220 B
+  (12.2 KB). Accuracy unchanged (points are the instantaneous reading); faster averaging rejected (noise at
+  background: 10 s ≈ 1.5 counts). Emulator: same 25 s of data is 3× wider than on the 10 min tab.
+
+## 2026-10-27: stock features vs port (from the stock strings, no flashing)
+- Stock menus (`analysis/ghidra/strings.txt`): Measure, Schedule (start delay, measurement time), Records (10:
+  No., start time, Average, Maximum, Total, duration), Delete (current/history, password), Alarm (rate, total
+  dose), Sound (alarm volume, alarm times, particle sounds), Clock, Sleep (screen sleep, auto shutdown hours,
+  brightness), Unit (uSv/uGy), Language, ICRP2007 info (0.52 / 10 uSv/h), hidden C1/C2.
+- Missing in the port: auto shutdown, µGy label, Schedule start delay, on-screen Records, ICRP page. Decision:
+  no stock restore just to look (restore ≈ 23 min, return needs a manual NRST hold; a patched SWD-on stock image
+  was judged riskier than holding NRST once).

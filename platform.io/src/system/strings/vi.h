@@ -101,6 +101,7 @@
 #define STRING_ALERT_DONE "XONG"
 
 // History period strings
+#define STRING_HISTORY_3_MINUTES "3 phút"
 #define STRING_HISTORY_10_MINUTES "10 phút"
 #define STRING_HISTORY_1_HOUR "1 giờ"
 #define STRING_HISTORY_1_DAY "1 ngày"

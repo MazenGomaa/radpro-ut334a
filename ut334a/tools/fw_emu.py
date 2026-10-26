@@ -10,6 +10,7 @@ Usage: fw_emu.py <workspace> <firmware.bin> <nm-output.txt> <max_ticks> <key_mas
   UART0 TX is printed at the end. After each tick the UART0 IRQ runs while TXBE_IE is set, then once for
   the next received byte (one byte per tick). After each newline it waits for the whole reply (CR LF).
   EMU_DUMP=sym[+offset],...: print 32-bit RAM values at the end (also as float).
+  EMU_POKE=tick:sym[+offset]:mask:value,...: at that tick, set the masked bits of a 32-bit RAM word.
 SysTick is simulated: every WFI runs SysTick_Handler once. The flash controller is modelled minimally
 (page erase on the 0x1234ABCD request, ERD/PRD always set); SPI1 is always ready, the ADC reads
 2640 on IN9 and 1500 on VREF (a ~3.9 V battery). Calls to address 0 (unset callbacks) are
@@ -133,6 +134,11 @@ uc.hook_add(UC_HOOK_MEM_WRITE, flash_wr, begin=0x00000000, end=0x0003FFFF)
 uc.hook_add(UC_HOOK_CODE, code)
 uc.reg_write(UC_ARM_REG_SP, 0x20006000)
 pc = syms['Reset_Handler']
+# EMU_POKE=tick:sym[+offset]:mask:value,...: at that tick, set the masked bits of a 32-bit RAM word (e.g. a settings bitfield)
+pokes = []
+for pk in filter(None, os.environ.get('EMU_POKE', '').split(',')):
+    t, target, m, v = pk.split(':'); sym, _, off = target.partition('+')
+    pokes.append((int(t), syms[sym] + int(off or '0', 0), int(m, 0), int(v, 0)))
 REGS = [UC_ARM_REG_R0 + i for i in range(13)] + [UC_ARM_REG_SP, UC_ARM_REG_LR, UC_ARM_REG_CPSR]
 while True:
     state['stop'] = None
@@ -173,6 +179,10 @@ while True:
                 uc.emu_start(syms['UART0_IRQHandler'] | 1, RET, count=200000)
         for r, v in zip(REGS, ctx): uc.reg_write(r, v)
         state['ticks'] += 1; pc = state['pc']
+        for pk in pokes:
+            if pk[0] == state['ticks']:
+                old_v = struct.unpack('<I', uc.mem_read(pk[1], 4))[0]
+                uc.mem_write(pk[1], struct.pack('<I', (old_v & ~pk[2]) | (pk[3] & pk[2])))
         if state['ticks'] >= max_ticks: print(f"stopped after {max_ticks} ticks, DeepSleep entries: {state.get('deepsleeps', 0)}, runs over 5 M instructions: {state.get('long_runs', 0)}, ticks without SysTick (DeepSleep): {state.get('ds_ticks', 0)}"); break
     elif state['stop'] is None and state.get('long_runs', 0) < 100:
         # 5 M instructions without a WFI (e.g. a full-screen image draw): carry on from here

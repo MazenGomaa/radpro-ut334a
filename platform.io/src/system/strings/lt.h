@@ -101,6 +101,7 @@
 #define STRING_ALERT_DONE "BAIGTA"
 
 // History period strings
+#define STRING_HISTORY_3_MINUTES "3 min"
 #define STRING_HISTORY_10_MINUTES "10 min"
 #define STRING_HISTORY_1_HOUR "1 val"
 #define STRING_HISTORY_1_DAY "1 d"

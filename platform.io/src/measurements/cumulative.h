@@ -16,6 +16,7 @@
 #include "../ui/view.h"
 
 void resetCumulativeDose(void);
+void clearCumulativeDose(void);
 
 void updateCumulativeDose(PulsePeriod *period);
 

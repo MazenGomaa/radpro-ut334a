@@ -217,7 +217,8 @@ for language_file in Path("../platform.io/src/system/strings").glob("*.h"):
 
     codepoint_set_small = get_codepoint_set(language_text, "0x20-0x7e")
     codepoint_set_monochrome_medium = get_codepoint_set(language_text)
-    codepoint_set_color_medium = get_codepoint_set(medium_text)
+    # Digits, decimal point and figure dash for the overview's medium values
+    codepoint_set_color_medium = get_codepoint_set(medium_text, "0x2e,0x30-0x39,0x2012")
     codepoint_set_color_medium_1bpp = get_codepoint_set(medium_1bpp_text)
 
     # Set font paths based on language

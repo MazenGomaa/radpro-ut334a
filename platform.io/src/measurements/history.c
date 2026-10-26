@@ -23,6 +23,9 @@
 
 typedef enum
 {
+#if defined(HISTORY_3_MINUTES)
+    HISTORY_TAB_3_MINUTES,
+#endif
     HISTORY_TAB_10_MINUTES,
     HISTORY_TAB_1_HOUR,
     HISTORY_TAB_1_DAY,
@@ -51,6 +54,10 @@ typedef struct
 } HistoryState;
 
 static const History histories[] = {
+#if defined(HISTORY_3_MINUTES)
+    // One bin per second: (HISTORY_BIN_NUM - 1) seconds, 200 s at 240x320
+    {STRING_HISTORY_3_MINUTES, 1, 10},
+#endif
     {STRING_HISTORY_10_MINUTES, 10 * 60 / (HISTORY_BIN_NUM - 1), 10},
     {STRING_HISTORY_1_HOUR, 60 * 60 / (HISTORY_BIN_NUM - 1), 6},
     {STRING_HISTORY_1_DAY, 24 * 60 * 60 / (HISTORY_BIN_NUM - 1), 8},
@@ -266,7 +273,7 @@ static void advanceHistoryTab(void)
 {
     historyTab++;
     if (historyTab >= HISTORY_TAB_NUM)
-        historyTab = HISTORY_TAB_10_MINUTES;
+        historyTab = 0;
 }
 
 static void drawHistoryView(void)

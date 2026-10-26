@@ -1,6 +1,6 @@
 # Phase 4: Rad Pro FM33 port
 
-## Status and next steps (2026-10-26, end of second session)
+## Status and next steps (2026-10-27, end of third session)
 **Rad Pro runs on the unit** (bench 2026-10-25/26). Working on hardware: boot, keys, GM counting (≈9 cpm
 background, 0.08–0.09 µSv/h), pulse click + LED, alert LED, all screens, brightness levels, sound/volume menu,
 flash saves, power-off fully dark, display sleep, charging icon with USB while on, charging LED held while off
@@ -11,12 +11,18 @@ Known bugs in it (both reproduced in the emulator with `EMU_DEEPSLEEP=real`): af
 (a) keys while off show nothing, (b) a USB re-plug after an unplug while off shows no charging screen (LED only).
 **Fixed in the fork working tree, committed, NOT flashed:** `isKeyboardIdle()` in `canEnterDeepSleep()` and
 `updatePowerState()` before DeepSleep (see notes). Emulator-verified, image SHA-256 c0950807….
+**Also committed, NOT flashed (2026-10-27, emulator-verified):** stock-style **Overview** screen (rate large +
+Average + Cumulative rows; OK cycles Average/Cumulative → Max + secondary-unit rate → bar), Up/Down cycle reduced
+to Overview ↔ History, Reset clears rate/max/average/cumulative, **3 min History tab** (1 s per point, 200 s),
+medium font with digits. Flags `MEASUREMENT_OVERVIEW`, `HISTORY_3_MINUTES` (UT334A builds only).
 
 **Build:** `~/.platformio/penv/Scripts/pio run -e uni-t-ut334a-en` in `radpro/platform.io` (in Git Bash `pio` is
 not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scratch dir →
 `uni-t-ut334a/firmware/radpro-uni-t-ut334a-en-3.1.2test2.bin`. Emulator check before flashing, e.g.
 `EMU_DEEPSLEEP=real EMU_KEY2=7000:10500:0x400 python tools/fw_emu.py . <bin> <nm.txt> 14000 0 0 0 <png>`
-(nm.txt = `arm-none-eabi-nm firmware.elf`; key masks: PA10 OK 0x400, PA15 left 0x8000; `EMU_USB=on:off:on`).
+(nm.txt = `arm-none-eabi-nm firmware.elf`; key masks: PA10 OK 0x400, PA15 left 0x8000, PD11 right
+0x0800000000000000; `EMU_USB=on:off:on`; `EMU_POKE=tick:sym+off:mask:value` sets settings bits, e.g. theme
+`settings+12:0x18:0x08` Dusk / `0x10` Night, primary unit `settings:0x6000:0x4000` cpm; 15000 ticks ≈ 5 min).
 
 **Flashing procedure** (see `docs/swd-access.md`, user version `docs/install-guide.md`): battery power only
 (ST-Link 3.3 V unconnected), `--no-nrst`: `tools/fm33_flash.sh dryrun --no-nrst`, then after "erase it":
@@ -24,8 +30,10 @@ not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scrat
 nothing was erased: battery off 5 s, retry.
 
 Next session, in order (stop for confirmation after each):
-1. Flash the off-state fix (after "erase it"; rebuild + sign + emulator first). Bench: off, wait > 10 s, press a
-   key → battery screen; USB in, wait for dark, out, wait, in → charging screen.
+1. Flash the current fork (off-state fix + Overview + 3 min History) after "erase it"; rebuild + sign +
+   emulator first. Bench: off, wait > 10 s, press a key → battery screen; USB in, wait for dark, out, wait, in →
+   charging screen. Overview: OK cycles the three tabs, Right → History (opens on 3 min), Left held 1 s → reset;
+   check the Overview in Day/Dusk/Night on the real panel.
 2. **Alarm sound:** user saw no alarm tone, and pulse clicks stop at each alert screen flash (display asleep,
    source). Reading: the alert tone runs (it blocks the clicks) but is inaudible. Check: Settings → Sound →
    alert volume (each selection plays the alarm); ask what each level sounds like; compare with the stock alarm
@@ -39,6 +47,9 @@ Next session, in order (stop for confirmation after each):
 7. Serial: FTDI on PA13/PA14 (1 kΩ into PA13, no VCC), USB charger in, 115200 8N1, `GET deviceId`; then CH340.
    Option: HC-05 on UART5 (PD0/PD1).
 8. Optional: faster drawing only if a screen is slow.
+9. Stock features still missing (from `analysis/ghidra/strings.txt`, see notes 2026-10-27): auto shutdown after
+   N hours, µGy unit label, Schedule (start delay + timed measurement), on-screen Records (10 sessions),
+   ICRP info page. Quick ones first (auto shutdown, µGy) if the user wants them.
 
 **Live-debug tools** (firmware running, no flash writes): `tools/fm33_backlight.sh <0..10000>` (ATIM CCR1);
 OpenOCD with `fm33-stlink.cfg` + `-c "init; ..."` for register reads/writes (see notes for examples: COLMOD

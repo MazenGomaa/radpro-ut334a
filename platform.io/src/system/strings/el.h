@@ -101,6 +101,7 @@
 #define STRING_ALERT_DONE "ΟΛΟΚΛΗΡΏΘΗΚΕ"
 
 // History period strings
+#define STRING_HISTORY_3_MINUTES "3 λεπτά"
 #define STRING_HISTORY_10_MINUTES "10 λεπτά"
 #define STRING_HISTORY_1_HOUR "1 ώρα"
 #define STRING_HISTORY_1_DAY "1 ημ"

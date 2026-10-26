@@ -101,6 +101,7 @@
 #define STRING_ALERT_DONE "FERTIG"
 
 // History period strings
+#define STRING_HISTORY_3_MINUTES "3 Min"
 #define STRING_HISTORY_10_MINUTES "10 Min"
 #define STRING_HISTORY_1_HOUR "1 Std"
 #define STRING_HISTORY_1_DAY "1 T"

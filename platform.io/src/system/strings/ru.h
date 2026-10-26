@@ -101,6 +101,7 @@
 #define STRING_ALERT_DONE "ГОТОВО"
 
 // History period strings
+#define STRING_HISTORY_3_MINUTES "3 мин"
 #define STRING_HISTORY_10_MINUTES "10 мин"
 #define STRING_HISTORY_1_HOUR "1 ч"
 #define STRING_HISTORY_1_DAY "1 д"

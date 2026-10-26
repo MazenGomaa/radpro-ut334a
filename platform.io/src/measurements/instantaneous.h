@@ -20,12 +20,15 @@
 extern const Menu instantaneousMenu;
 
 void resetInstantaneousRate(void);
+void clearInstantaneousRate(void);
 
 void updateInstantaneousRate(uint32_t periodTick, PulsePeriod *period);
 
 float getDeadTimeCompensationFactor(void);
 
 float getInstantaneousRate(void);
+float getInstantaneousRateConfidence(void);
+float getInstantaneousRateMax(void);
 
 bool isInstantaneousRateConfidenceGood(void);
 

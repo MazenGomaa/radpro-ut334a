@@ -102,6 +102,7 @@
 #define STRING_ALERT_DONE "GATAVS"
 
 // History period strings
+#define STRING_HISTORY_3_MINUTES "3 min"
 #define STRING_HISTORY_10_MINUTES "10 min"
 #define STRING_HISTORY_1_HOUR "1 st"
 #define STRING_HISTORY_1_DAY "1 d"

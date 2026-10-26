@@ -101,6 +101,7 @@
 #define STRING_ALERT_DONE "SELESAI"
 
 // History period strings
+#define STRING_HISTORY_3_MINUTES "3 mnt"
 #define STRING_HISTORY_10_MINUTES "10 mnt"
 #define STRING_HISTORY_1_HOUR "1 jm"
 #define STRING_HISTORY_1_DAY "1 hr"

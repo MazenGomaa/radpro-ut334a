@@ -26,8 +26,6 @@ typedef enum
     AVERAGE_TAB_ALERT = AVERAGE_TAB_NUM,
 } AverageTab;
 
-static void clearAverageRate(void);
-
 static const int32_t averagingTimes[] = {
     30 * 24 * 60 * 60, // Off (30 days)
     24 * 60 * 60,      // 24 hours
@@ -75,7 +73,7 @@ void resetAverageRate(void)
     selectMenuItem(&averageMenu, settings.averaging);
 }
 
-static void clearAverageRate(void)
+void clearAverageRate(void)
 {
     memset(&average, 0, sizeof(average));
 
@@ -173,6 +171,16 @@ void updateAverageRate(PulsePeriod *period)
 float getAverageRate(void)
 {
     return average.snapshotRate.value;
+}
+
+uint32_t getAverageRateTime(void)
+{
+    return average.snapshotRate.time;
+}
+
+bool isAverageRateDone(void)
+{
+    return average.done;
 }
 
 // Average rate view

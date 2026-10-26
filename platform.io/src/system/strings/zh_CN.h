@@ -101,6 +101,7 @@
 #define STRING_ALERT_DONE "完成"
 
 // History period strings
+#define STRING_HISTORY_3_MINUTES "3分钟"
 #define STRING_HISTORY_10_MINUTES "10分钟"
 #define STRING_HISTORY_1_HOUR "1小时"
 #define STRING_HISTORY_1_DAY "1天"

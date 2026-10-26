@@ -37,6 +37,9 @@ Tested on one unit (2026-10-26):
   levels, display sleep, sound and volume settings, settings saved to flash, battery display, charging icon,
   charging LED that stays on until full, USB auto power-on, charging screen when USB is plugged in while off.
 * Fixed, not yet tested on the unit: keys and USB re-plug while off once the unit has gone back to sleep.
+* Added, not yet tested on the unit: an **overview screen** like the stock firmware's (instantaneous rate, average
+  rate and cumulative dose together; OK switches its lower part to maximum and secondary-unit rate, or the bar),
+  which with History forms the screen cycle; a **3 minute history** view (one point per second).
 * Added, not yet tested on the unit: **serial link** for data export and streaming through an added 3.3 V
   USB-serial adapter on the MCU's UART0 (the UT334A has no USB data connection; see the installation guide);
   stock calibration as the "UT334A" tube preset; lower power use while off; low-battery power-off as stock

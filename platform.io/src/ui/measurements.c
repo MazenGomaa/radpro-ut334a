@@ -205,6 +205,127 @@ void drawMeasurementInfo(const char *keyString, const char *valueString, const c
                      style == MEASUREMENTSTYLE_DONE);
 }
 
+#if defined(MEASUREMENT_OVERVIEW)
+
+// Overview layout (portrait):
+//
+//         Value
+//                  Unit
+//            Confidence
+// ---------------------
+// Key              Time
+//         Value    Unit
+// Key              Time
+//         Value    Unit
+
+// Ascent and distance from a text line's top to its cap height (Latin medium and small fonts at 240x320).
+// Each band holds its whole text, from the cap height (key rows: the full ascent, for accents) to the descent.
+#define OVERVIEW_MEDIUM_ASCENT 35
+#define OVERVIEW_MEDIUM_CAP_OFFSETY 10
+#define OVERVIEW_SMALL_ASCENT 23
+#define OVERVIEW_SMALL_CAP_OFFSETY 7
+
+#define OVERVIEW_VALUE_TOP CONTENT_TOP
+#define OVERVIEW_VALUE_HEIGHT 74
+#define OVERVIEW_VALUE_OFFSETY (6 - (FONT_LARGE_ASCENT - FONT_LARGE_CAP_HEIGHT))
+#define OVERVIEW_UNIT_TOP (OVERVIEW_VALUE_TOP + OVERVIEW_VALUE_HEIGHT)
+#define OVERVIEW_UNIT_HEIGHT 37
+#define OVERVIEW_UNIT_OFFSETY (2 - OVERVIEW_MEDIUM_CAP_OFFSETY)
+#define OVERVIEW_CONFIDENCE_TOP (OVERVIEW_UNIT_TOP + OVERVIEW_UNIT_HEIGHT)
+#define OVERVIEW_CONFIDENCE_HEIGHT 20
+#define OVERVIEW_CONFIDENCE_OFFSETY (1 - OVERVIEW_SMALL_CAP_OFFSETY)
+#define OVERVIEW_SEPARATOR_TOP (OVERVIEW_CONFIDENCE_TOP + OVERVIEW_CONFIDENCE_HEIGHT)
+#define OVERVIEW_SEPARATOR_HEIGHT 1
+#define OVERVIEW_ROW_TOP (OVERVIEW_SEPARATOR_TOP + OVERVIEW_SEPARATOR_HEIGHT)
+#define OVERVIEW_ROW_HEIGHT (OVERVIEW_ROWKEY_HEIGHT + 38)
+#define OVERVIEW_ROWKEY_HEIGHT FONT_SMALL_LINE_HEIGHT
+#define OVERVIEW_ROWKEY_OFFSETY 0
+#define OVERVIEW_ROWTIME_SPACING 8
+#define OVERVIEW_ROWVALUE_OFFSETY (3 - OVERVIEW_MEDIUM_CAP_OFFSETY)
+
+void drawOverviewValue(const char *valueString, const char *unitString, float confidence, MeasurementStyle style)
+{
+    // Value
+    setFont(font_large);
+    setStrokeColor(measurementStyleColorIndex[style]);
+    drawRightAlignedText(valueString,
+                         &(mr_rectangle_t){CONTENT_LEFT, OVERVIEW_VALUE_TOP, CONTENT_WIDTH, OVERVIEW_VALUE_HEIGHT},
+                         &(mr_point_t){CONTENT_WIDTH - MEASUREMENT_PADDING_RIGHT, OVERVIEW_VALUE_OFFSETY});
+
+    // Unit
+    setFont(font_medium);
+    setStrokeColor(COLOR_ELEMENT_NEUTRAL);
+    drawRightAlignedText(unitString,
+                         &(mr_rectangle_t){CONTENT_LEFT, OVERVIEW_UNIT_TOP, CONTENT_WIDTH, OVERVIEW_UNIT_HEIGHT},
+                         &(mr_point_t){CONTENT_WIDTH - MEASUREMENT_PADDING_RIGHT, OVERVIEW_UNIT_OFFSETY});
+
+    // Confidence
+    char confidenceString[8];
+    char confidenceUnit[8];
+    strclr(confidenceString);
+    strclr(confidenceUnit);
+    if (confidence != 0)
+    {
+        strcat(confidenceString, getString(STRING_PLUSMINUS));
+        strcatFloat(confidenceString, 100 * confidence, confidence < 0.1F ? 1 : 0);
+        strcat(confidenceUnit, getString(STRING_PERCENT));
+    }
+    setFont(font_small);
+    drawValueAndUnit(confidenceString,
+                     confidenceUnit,
+                     &(mr_rectangle_t){CONTENT_LEFT, OVERVIEW_CONFIDENCE_TOP, CONTENT_WIDTH, OVERVIEW_CONFIDENCE_HEIGHT},
+                     &(mr_point_t){CONTENT_WIDTH - MEASUREMENT_PADDING_RIGHT - getTextWidth(confidenceString) - getTextWidth(confidenceUnit), OVERVIEW_CONFIDENCE_OFFSETY},
+                     false);
+
+    // Separator
+    setFillColor(COLOR_INSTRUMENT_FRAME_TERTIARY);
+    drawRectangle(&(mr_rectangle_t){CONTENT_LEFT, OVERVIEW_SEPARATOR_TOP, CONTENT_WIDTH, OVERVIEW_SEPARATOR_HEIGHT});
+    setFillColor(COLOR_CONTAINER_BACKGROUND);
+}
+
+void drawOverviewRow(uint32_t index, const char *keyString, const char *timeString, const char *valueString, const char *unitString, bool isHold)
+{
+    int16_t top = OVERVIEW_ROW_TOP + index * (OVERVIEW_ROW_HEIGHT + OVERVIEW_SEPARATOR_HEIGHT);
+    int16_t valueTop = top + OVERVIEW_ROWKEY_HEIGHT;
+    int16_t valueHeight = (index ? (CONTENT_BOTTOM - valueTop) : (OVERVIEW_ROW_HEIGHT - OVERVIEW_ROWKEY_HEIGHT));
+
+    // Separator from the row above
+    if (index)
+    {
+        setFillColor(COLOR_INSTRUMENT_FRAME_TERTIARY);
+        drawRectangle(&(mr_rectangle_t){CONTENT_LEFT, top - OVERVIEW_SEPARATOR_HEIGHT, CONTENT_WIDTH, OVERVIEW_SEPARATOR_HEIGHT});
+        setFillColor(COLOR_CONTAINER_BACKGROUND);
+    }
+
+    // Key (clipped if it is too long) and time
+    setFont(font_small);
+    setStrokeColor(COLOR_ELEMENT_NEUTRAL);
+    int16_t timeWidth = OVERVIEW_ROWTIME_SPACING + getTextWidth(timeString) + MEASUREMENT_PADDING_RIGHT;
+    int16_t keyWidth = CONTENT_WIDTH - timeWidth;
+    drawText(keyString,
+             &(mr_rectangle_t){CONTENT_LEFT, top, keyWidth, OVERVIEW_ROWKEY_HEIGHT},
+             &(mr_point_t){MEASUREMENT_PADDING_LEFT, OVERVIEW_ROWKEY_OFFSETY});
+    drawRightAlignedText(timeString,
+                         &(mr_rectangle_t){CONTENT_LEFT + keyWidth, top, timeWidth, OVERVIEW_ROWKEY_HEIGHT},
+                         &(mr_point_t){timeWidth - MEASUREMENT_PADDING_RIGHT, OVERVIEW_ROWKEY_OFFSETY});
+
+    // Unit (small font, on the value's baseline)
+    int16_t unitWidth = getTextWidth(unitString) + MEASUREMENT_PADDING_RIGHT;
+    int16_t unitLeft = CONTENT_WIDTH - unitWidth;
+    drawText(unitString,
+             &(mr_rectangle_t){CONTENT_LEFT + unitLeft, valueTop, unitWidth, valueHeight},
+             &(mr_point_t){0, OVERVIEW_ROWVALUE_OFFSETY + OVERVIEW_MEDIUM_ASCENT - OVERVIEW_SMALL_ASCENT});
+
+    // Value
+    setFont(font_medium);
+    setStrokeColor(isHold ? COLOR_ELEMENT_ACTIVE : COLOR_INSTRUMENT_ENHANCED_SECONDARY);
+    drawRightAlignedText(valueString,
+                         &(mr_rectangle_t){CONTENT_LEFT, valueTop, unitLeft, valueHeight},
+                         &(mr_point_t){unitLeft, OVERVIEW_ROWVALUE_OFFSETY});
+}
+
+#endif
+
 // Bar
 
 #define BAR_DECADES 7
@@ -468,3 +589,15 @@ void drawMeasurementBar(float value, int32_t minExponent, float warningValue, fl
 
     return;
 }
+
+#if defined(MEASUREMENT_OVERVIEW)
+
+void drawOverviewBar(float value, int32_t minExponent, float warningValue, float alarmValue)
+{
+    // Clear the rows area above the bar
+    drawRectangle(&(mr_rectangle_t){CONTENT_LEFT, OVERVIEW_ROW_TOP, CONTENT_WIDTH, BAR_TOP - OVERVIEW_ROW_TOP});
+
+    drawMeasurementBar(value, minExponent, warningValue, alarmValue);
+}
+
+#endif

@@ -15,6 +15,7 @@
 #include "../measurements/history.h"
 #include "../measurements/instantaneous.h"
 #include "../measurements/magneticfield.h"
+#include "../measurements/overview.h"
 #include "../peripherals/display.h"
 #include "../peripherals/emf.h"
 #include "../peripherals/keyboard.h"
@@ -29,9 +30,13 @@
 
 typedef enum
 {
+#if defined(MEASUREMENT_OVERVIEW)
+    MEASUREMENTS_VIEW_OVERVIEW,
+#else
     MEASUREMENTS_VIEW_INSTANTANEOUS_RATE,
     MEASUREMENTS_VIEW_AVERAGE_RATE,
     MEASUREMENTS_VIEW_CUMULATIVE_DOSE,
+#endif
 #if defined(EMFMETER)
     MEASUREMENTS_VIEW_ELECTRIC_FIELD,
     MEASUREMENTS_VIEW_MAGNETIC_FIELD,
@@ -61,9 +66,13 @@ static const Menu measurementsMenu;
 // Measurements
 
 static OnViewEvent *const measurementViews[] = {
+#if defined(MEASUREMENT_OVERVIEW)
+    onOverviewViewEvent,
+#else
     onInstantaneousRateViewEvent,
     onAverageRateViewEvent,
     onCumulativeDoseViewEvent,
+#endif
 #if defined(EMFMETER)
     onElectricFieldViewEvent,
     onMagneticFieldViewEvent,
@@ -75,7 +84,7 @@ static void setMeasurementViewSelect(MeasurementView index);
 
 void resetMeasurements(void)
 {
-    measurements.viewIndex = MEASUREMENTS_VIEW_INSTANTANEOUS_RATE;
+    measurements.viewIndex = 0;
 
     resetPulses();
 
@@ -169,10 +178,15 @@ void updateMeasurements(void)
     // Set view
     if (!isDisplayEnabled() && measurements.alertPending)
     {
+#if defined(MEASUREMENT_OVERVIEW)
+        if (getInstantaneousRateAlertLevel() || getCumulativeDoseAlertLevel())
+            setMeasurementViewSelect(MEASUREMENTS_VIEW_OVERVIEW);
+#else
         if (getInstantaneousRateAlertLevel())
             setMeasurementViewSelect(MEASUREMENTS_VIEW_INSTANTANEOUS_RATE);
         else if (getCumulativeDoseAlertLevel())
             setMeasurementViewSelect(MEASUREMENTS_VIEW_CUMULATIVE_DOSE);
+#endif
 #if defined(EMFMETER)
         else if (getElectricFieldAlertLevel())
             setMeasurementViewSelect(MEASUREMENTS_VIEW_ELECTRIC_FIELD);

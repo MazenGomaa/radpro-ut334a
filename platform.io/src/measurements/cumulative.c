@@ -27,8 +27,6 @@ typedef enum
     CUMULATIVE_TAB_ALERT = CUMULATIVE_TAB_NUM,
 } CumulativeTab;
 
-static void clearCumulativeDose(void);
-
 static struct
 {
     Dose dose;
@@ -47,7 +45,7 @@ void resetCumulativeDose(void)
     cumulative.dose = tubeDose;
 }
 
-static void clearCumulativeDose(void)
+void clearCumulativeDose(void)
 {
     memset(&cumulative, 0, sizeof(cumulative));
 
