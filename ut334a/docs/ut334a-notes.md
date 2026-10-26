@@ -314,3 +314,33 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   still to measure (bench step 2). Fork commit `ca3f85a`.
 - Stock has no energy (source) correction: only the three rate bands and C1/C2. With Rad Pro's default source
   (Cs-137, factor 1.0) the UT334A preset behaves as stock; the copied M4011 factors apply only to other sources.
+
+## 2026-10-26: USB auto power-on; serial and Bluetooth options (offline)
+- Feature review vs the other Rad Pro devices: build-flag only = GAME (+3.8 KB flash / +0.6 KB RAM, user: not
+  wanted), USB_AUTOPOWER_ON; port work = HV profiles (bench first). Hardware: serial (UART), vibrator (spare
+  pin + MOSFET), Bluetooth. Not practical: VOICE (GMC-800 voice chip), EMFMETER (GC-03 sensor).
+- **USB_AUTOPOWER_ON** added (Settings → Power → USB auto power on; off by default as upstream). Rad Pro only
+  checks it at boot, which on the UT334A is a battery connection: with POWER_OFF_SLEEP, boot powers on only if
+  USB is present, and a USB plug-in while off powers on (heartbeat edge in updatePowerState). Emulator (temp
+  build, setting on): battery boot → off → DeepSleep 5.37–7.0 s → USB at 7 s → measurement screen with the
+  charging icon; boot with USB → measurement screen. Not flashed.
+- UART pins (datasheet pin table): **UART0 = PA13 RX / PA14 TX** (QFN 3/4, no tracks) and **UART5 = PD0 RX /
+  PD1 TX** (QFN 30/31; stock drives them low and never uses them, continuity unknown). Two independent UARTs:
+  wired serial and Bluetooth can coexist without a switch.
+- `fm33_comm.c` is still a stub; without DATA_MODE Rad Pro opens comm only while USB powered. Upstream serial
+  devices use 115200 8N1.
+- IO levels: VDD is 3.0 V; 3.3 V logic (FTDI, HC-05) into the MCU is within the latch-up spec (VI < 1.5 VDD) but
+  above VDD: 1 kΩ in series on lines into the MCU. MCU 3.0 V output is a valid high for 3.3 V logic.
+- **Serial driver** (`fm33_comm.c`, was a stub): UART0 on PA13 RX / PA14 TX (GPIOA DFS = 0 → UART0, not
+  LPUART0), APBCLK (UART0CKS = 00, UART0CKE), baud = APBCLK / (SPBRG + 1) → BGR 555 = 115 108 baud (0.08 %),
+  8N1 (CSR 0x43), RX pull-up, RXBF interrupt, TXBE interrupt while sending; error flags write-1-to-clear.
+  Same protocol state machine as the STM32 serial driver. Closed: pins analog, clocks off. Opens while USB powered.
+  No APBRSTCR reset (needs the RCC_PRSTEN key; all registers are written anyway). UART CSR.IOSWAP swaps RX/TX
+  if the wiring ends up crossed.
+- `fw_emu.py`: UART0 model (`EMU_UART_RX=tick:text`, '|' = newline; TX printed). With USB from boot:
+  `GET deviceId` → `OK UNI-T UT334A;Rad Pro 3.1.2test2/en;<chip UID>`, `GET tubeType` → `OK UT334A`,
+  `GET tubeSensitivity` → `OK 68.270`, battery 3.900, pulse count, unknown command → `ERROR`. Model limit: it
+  feeds one byte per tick without waiting for multi-part replies (deviceId), so a command right after deviceId
+  loses its first bytes in the emulator (a real host waits for the reply line).
+- Bench test plan (FTDI): FTDI TX → 1 kΩ → PA13 (QFN 3), FTDI RX ← PA14 (QFN 4), GND; FTDI VCC unconnected,
+  3.3 V logic; USB charger plugged in (comm opens on USB power); terminal 115200 8N1, send `GET deviceId` + CR/LF.

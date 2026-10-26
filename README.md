@@ -25,7 +25,8 @@ On the **UNI-T UT334A**, Rad Pro lets you:
 * Track accumulated radiation dose
 * Configure alerts for rate and dose thresholds (alert LED and sound)
 * Visualize historical trends over multiple time scales
-* Log measurement data to the internal flash
+* Log measurement data to the internal flash, and export it or stream live data over an added serial
+  adapter (experimental, see below)
 * Generate high-quality random data
 
 ### UT334A port status
@@ -35,13 +36,14 @@ Tested on one unit (2026-10-26):
 * Working: boot and power on/off, keys, GM counting, pulse click and LED, alert LED, all screens, brightness
   levels, display sleep, sound and volume settings, settings saved to flash, battery display, charging LED
   while off.
-* Not available: **data export and streaming** to a PC or to gmcmap.com, radmon.org, safecast.org or
-  opensensemap.org. The UT334A has no USB data connection; a serial port through an added USB-serial adapter
-  is planned.
+* Added, not yet tested on the unit: **serial link** for data export and streaming through an added 3.3 V
+  USB-serial adapter on the MCU's UART0 (the UT334A has no USB data connection; see the installation guide);
+  stock calibration as the "UT334A" tube preset; USB auto power-on; charging LED that stays on until full;
+  lower power use while off.
 * Not yet verified: alarm sound levels, battery reading accuracy (reads about 1 % high), clock and saved data
   across a battery disconnect, power consumption while off, counts and calibration against the stock firmware.
 
-The upstream Rad Pro feature list (all devices) also includes data export and streaming over USB.
+Upstream Rad Pro devices export and stream over USB; the UT334A needs the serial adapter for this.
 
 ## Installation
 

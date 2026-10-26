@@ -6,6 +6,9 @@ Usage: fw_emu.py <workspace> <firmware.bin> <nm-output.txt> <max_ticks> <key_mas
   (as the RAM holds it, and as the panel shows it with MADCTL/INVON applied).
   key_mask: GPIO DIN bits forced low, 16 bits per port from PA (e.g. 0x400 = PA10/OK held).
   EMU_USB=tick: USB powered (PA9 high) from that tick. EMU_BAT=tick:raw: IN9 reads raw from that tick.
+  EMU_UART_RX=tick:text: UART0 receives text from that tick ('|' = newline, several commands allowed);
+  UART0 TX is printed at the end. After each tick the UART0 IRQ runs while TXBE_IE is set, then once for
+  the next received byte (one byte per tick, i.e. a host that waits for each response).
 SysTick is simulated: every WFI runs SysTick_Handler once. The flash controller is modelled minimally
 (page erase on the 0x1234ABCD request, ERD/PRD always set); SPI1 is always ready, the ADC reads
 2640 on IN9 and 1500 on VREF (a ~3.9 V battery). Calls to address 0 (unset callbacks) are
@@ -28,6 +31,9 @@ deepsleep_continue = os.environ.get('EMU_DEEPSLEEP') == 'continue'
 # EMU_USB=tick: USB powered (PA9 high) from that tick; EMU_BAT=tick:raw: battery ADC reads raw from that tick
 usb_from = int(os.environ['EMU_USB']) if os.environ.get('EMU_USB') else None
 bat_step = [int(x, 0) for x in os.environ['EMU_BAT'].split(':')] if os.environ.get('EMU_BAT') else None
+uart_rx_at, _, uart_rx = os.environ.get('EMU_UART_RX', '').partition(':')
+uart = {'rx': list(uart_rx.replace('|', chr(10)).encode()), 'rx_at': int(uart_rx_at or 0), 'rxbf': False, 'byte': 0,
+        'tx': bytearray(), 'tx_ticks': []}
 sys.path.insert(0, root + '/tools')
 from svd_map import load
 names = {a: nm for a, (nm, f) in load(root + '/vendor/FM33LC0XX_DFP/SVD/FM33LC0XX.SVD').items()}
@@ -73,6 +79,8 @@ spi_ticks = []
 gpiob = {'do': 0}
 def wr(u, acc, addr, size, val, ud):
     if addr == 0x40001018: fls_key(u, val & 0xFFFFFFFF)
+    if addr == 0x40011C14:   # UART0_TXBUF
+        uart['tx'].append(val & 0xFF); uart['tx_ticks'].append(state['ticks']); return
     if addr == 0x40018C14:
         spi.append(((gpiob['do'] >> 3) & 1, (gpiob['do'] >> 8) & 1, val & 0xFF)); spi_ticks.append(state['ticks']); return
     if addr == 0x40000C50: gpiob['do'] = val
@@ -88,6 +96,10 @@ def rd(u, acc, addr, size, val, ud):
         if state.get('erase') is not None:
             u.mem_write(state['erase'], bytes([0xFF]) * 0x200); log.append((state['ticks'], f"ERASE page 0x{state['erase']:05X}", 0)); state['erase'] = None
         u.mem_write(addr, struct.pack('<I', 0x3))
+    if addr == 0x40011C08:   # UART0_ISR: TXBE + TXSE always, RXBF while a byte waits
+        u.mem_write(addr, struct.pack('<I', 0x3 | (0x100 if uart['rxbf'] else 0)))
+    if addr == 0x40011C10:   # UART0_RXBUF
+        u.mem_write(addr, struct.pack('<I', uart['byte'])); uart['rxbf'] = False
     if addr == 0x40018C10:   # SPI1_ISR: TXBE, not busy
         u.mem_write(addr, struct.pack('<I', 0x2))
     if addr == 0x4001AC00:   # ADC_ISR: EOC
@@ -129,6 +141,18 @@ while True:
         if pulse_period and state['ticks'] % pulse_period == 0 and 'COMPx_IRQHandler' in syms:
             uc.reg_write(UC_ARM_REG_SP, 0x20007F00); uc.reg_write(UC_ARM_REG_LR, RET | 1)
             uc.emu_start(syms['COMPx_IRQHandler'] | 1, RET, count=200000)
+        if 'UART0_IRQHandler' in syms:
+            rx_done = False   # one received byte per tick; a pending transmission goes first
+            for _ in range(256):
+                ier = struct.unpack('<I', uc.mem_read(0x40011C04, 4))[0]
+                if ier & 0x2:
+                    pass
+                elif (ier & 0x100) and uart['rx'] and state['ticks'] >= uart['rx_at'] and not rx_done:
+                    uart['byte'] = uart['rx'].pop(0); uart['rxbf'] = True; rx_done = True
+                else:
+                    break
+                uc.reg_write(UC_ARM_REG_SP, 0x20007F00); uc.reg_write(UC_ARM_REG_LR, RET | 1)
+                uc.emu_start(syms['UART0_IRQHandler'] | 1, RET, count=200000)
         for r, v in zip(REGS, ctx): uc.reg_write(r, v)
         state['ticks'] += 1; pc = state['pc']
         if state['ticks'] >= max_ticks: print(f"stopped after {max_ticks} ticks, DeepSleep entries: {state.get('deepsleeps', 0)}"); break
@@ -196,3 +220,5 @@ if screen_png:
         from PIL import ImageOps
         ImageOps.invert(img).save(screen_png.replace('.png', '_panel_inverted.png'))
     print(f"saved {screen_png}")
+if uart['tx']:
+    print(f"UART0 TX (ticks {uart['tx_ticks'][0]}..{uart['tx_ticks'][-1]}): {bytes(uart['tx'])!r}")

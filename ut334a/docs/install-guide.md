@@ -116,6 +116,21 @@ retry. If it reports `VERIFY FAILED`: do not power-cycle, flash again (or restor
 After a good flash, hold OK for about 3 s to power on. Settings are under the menu (OK); see the
 [Rad Pro user's manual](../../docs/users-manual.md).
 
+## Optional: serial connection (data export, streaming)
+The UT334A's USB-C socket only charges. For Rad Pro's PC link (GeigerLog, data log download, streaming) add a
+3.3 V USB-serial adapter (FTDI, CH340, CP2102):
+
+| Adapter | UT334A |
+|---|---|
+| TX | **1 kΩ** in series → PA13 (QFN pin 3, UART0 RX) |
+| RX | PA14 (QFN pin 4, UART0 TX) |
+| GND | GND |
+| VCC | **leave unconnected** |
+
+The MCU runs at 3.0 V: use 3.3 V logic (never 5 V) and keep the 1 kΩ resistor. Settings: 115200 baud, 8N1.
+Rad Pro opens the port only while USB power is present, so keep the USB charger plugged in. Test with a terminal: `GET deviceId` + Enter answers `OK UNI-T UT334A;...`.
+This part is new and **not yet tested on hardware**.
+
 ## Restoring the stock firmware
 `tools/fm33_flash.sh flash <your dump>.bin --erase-it --no-nrst` (≈ 23 min; Rad Pro leaves SWD free, so no NRST
 hold). In the port's private workspace `tools/fm33_flash.sh restore --erase-it` does the same with

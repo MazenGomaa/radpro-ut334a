@@ -7,7 +7,8 @@ background, 0.08–0.09 µSv/h), pulse click + LED, alert LED, all screens (afte
 clean screen on power-on, display sleep dark (counting continues), wake key only wakes. Log: `docs/ut334a-notes.md`.
 
 **On the unit now:** fork commit `aac7617` (flashed 2026-10-26, image SHA-256 afc69f63…).
-**Built, emulator-verified, NOT flashed:** fork commit `7250c07` = `aac7617` + charging indicator hold as stock
+**Built, emulator-verified, NOT flashed:** fork commit `aa23d2d` (also tube preset, BOR, auto power-on, serial: see step 1).
+First of them, `7250c07` = `aac7617` + charging indicator hold as stock
 (on with USB below 4.1 V, off after 10 min at or above 4.1 V or on USB removal; bench: 4.18 V on the battery
 while charging made the old LED go off after one 5 s re-read). Image SHA-256 56e735f7… (rebuild it, below).
 
@@ -22,8 +23,8 @@ not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scrat
 nothing was erased: battery off 5 s, retry.
 
 Next session, in order (stop for confirmation after each):
-1. Flash the current fork build (after "erase it"): `7250c07` + UT334A tube preset + BOR off in DeepSleep and
-   one PLL restart per wake = fork `ca3f85a` (see the notes, 2026-10-26). Check: USB while off → green LED stays on (≈ 10 min with a nearly full
+1. Flash fork `aa23d2d` (after "erase it"): charging LED hold, UT334A tube preset, BOR off in DeepSleep with one PLL
+   restart per off period, USB auto power-on, UART0 serial driver (see the notes, 2026-10-26). Check: USB while off → green LED stays on (≈ 10 min with a nearly full
    battery, longer when lower), off on unplugging; charging icon while on. Double-press left while off shows
    the battery (not checked yet).
 2. **Off-state current** with a meter in series with the battery (stock lasted months, so µA range expected).
@@ -37,7 +38,11 @@ Next session, in order (stop for confirmation after each):
 7. GM: the "UT334A" preset (68.27 CPM per µSv/h, stock low band) should read as stock at background; compare
    with a reference above 0.8 µSv/h if possible (stock uses 46.1 there); HV at the tube (HV probe only).
 8. Optional: faster drawing (SPI DMA / 16-bit frames as stock); fixed 5 s averaging option.
-9. Later: comm over UART0 (PA13 RX / PA14 TX) after the CH340 mod (data export, streaming).
+9. Serial: driver written and emulator-tested (UART0, 115200 8N1, opens on USB power). Bench: FTDI on PA13/PA14
+   (1 kΩ into PA13, no VCC), USB charger in, `GET deviceId`; then the CH340. Option: HC-05 on UART5 (PD0/PD1)
+   with a P-MOSFET supply switch on PC9/PC10 and Rad Pro's DATA_MODE (continuity checks first).
+10. USB auto power-on (Settings → Power): plug USB in while off → powers on (setting on); battery reconnect with
+   the setting on and no USB → stays off.
 
 **Live-debug tools** (firmware running, no flash writes): `tools/fm33_backlight.sh <0..10000>` (ATIM CCR1);
 OpenOCD with `fm33-stlink.cfg` + `-c "init; ..."` for register reads/writes (see notes for examples: COLMOD
