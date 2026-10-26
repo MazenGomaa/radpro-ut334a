@@ -225,6 +225,9 @@ enum
 #define TUBE_HVPROFILE_FACTORYDEFAULT_DUTYCYCLE 0.163F
 #elif defined(UT334A)
 #define TUBE_TYPE_DEFAULT TUBE_TYPE_UT334A
+// Low battery as stock: below 3350 mV for 10 samples in a row (~100 s), no USB
+#define PWR_BAT_LOW_VOLTAGE 3.35F
+#define PWR_BAT_LOW_SECONDS 100
 #endif
 
 enum

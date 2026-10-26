@@ -305,8 +305,16 @@ static const float batteryLevels[1][BATTERY_LEVEL_NUM - 1] = {
 };
 
 static const float batteryLow[1] = {
+#if defined(PWR_BAT_LOW_VOLTAGE)
+    PWR_BAT_LOW_VOLTAGE,
+#else
     3.0F,
+#endif
 };
+#endif
+
+#if defined(PWR_BAT_LOW_SECONDS)
+static uint32_t lowBatterySeconds;
 #endif
 
 void updatePowerState(void)
@@ -334,16 +342,34 @@ void updatePowerState(void)
     {
         bool lowBattery = (power.batteryVoltage < batteryLow[settings.powerBatteryType]);
 
+#if defined(PWR_BAT_LOW_SECONDS)
+        // Ignore short dips (alarm, HV bursts): the voltage must stay low for this long
+        if (!lowBattery || !power.poweredOn)
+            lowBatterySeconds = 0;
+        else if (lowBatterySeconds < PWR_BAT_LOW_SECONDS)
+        {
+            lowBatterySeconds++;
+            lowBattery = false;
+        }
+#endif
+
         if (power.poweredOn && lowBattery)
             powerOffWithBatteryIndicator(true);
     }
 
     if (!power.previousUSBPowered && usbPowered)
     {
-#if defined(POWER_OFF_SLEEP) && defined(USB_AUTOPOWER_ON)
-        // The MCU stays powered while off, so a USB plug-in does not boot it
-        if (!power.poweredOn && settings.powerUSBAutoPowerOn)
-            powerOn();
+#if defined(POWER_OFF_SLEEP)
+        // The MCU stays powered while off, so a USB plug-in does not boot it: do what boot() would
+        if (!power.poweredOn)
+        {
+#if defined(USB_AUTOPOWER_ON)
+            if (settings.powerUSBAutoPowerOn)
+                powerOn();
+            else
+#endif
+                triggerPowerOffBacklight();
+        }
 #endif
 
         requestBacklightTrigger();
