@@ -370,3 +370,37 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   reading would jump between 0 and ≈ 1.6 µSv/h; Rad Pro's adaptive fast averaging already covers strong sources.
 - Committed: fork `0954b16` (charging screen while off, low battery 3.35 V / 100 s, README shared-code table).
   Release build (en) checked: RAM 11964 B, flash 48460 B. Next to flash after "erase it".
+
+## 2026-10-26: fork 0954b16 flashed
+- Rebuilt `uni-t-ut334a-en` at fork `acc8b3a` (= `0954b16` + docs), signed (image SHA-256 c234f030…). Emulator:
+  boot → off (DeepSleep at 5.4 s) → OK held at 7 s → clean measurement screen, 0 key-error locks.
+- Dry run clean (UNPROTECTED, FLS not locked), then flashed on battery with `--no-nrst`: 512 pages erased,
+  12166 words programmed, VERIFY OK (readback 3b7e26a6…). Bench checks of the new features still to do.
+- Bench, `0954b16`: boots and counts; USB in while on → charging icon; off with USB in → green LED stays on
+  (not yet off after the hold); USB out while off → LED off at once; **USB back in while off → LED on, but no
+  charging screen** until a key is pressed.
+- Cause (from the code, not confirmed on the unit): the USB plug-in edge is detected only in the 1 s
+  heartbeat (`updatePowerState`). Unplugged while off, the unit enters DeepSleep at once and SysTick stops, so the
+  unplug is never sampled and `previousUSBPowered` stays true → the next plug-in is not an edge. The LED path reads
+  PA9 on every loop pass, so it is unaffected. The emulator cannot show it: it runs SysTick on every DeepSleep
+  WFI (`EMU_USB=7000:9000:11000`, now on/off/on toggles, shows the screen at 11.0 s).
+- User decision: keep as is. Side effects of the stale flag, all cleared by the next key press or power-on
+  (heartbeat runs again with USB out): only USB auto power-on (if enabled) would also miss that re-plug.
+  Unaffected: charging icon, charging LED, serial (comm), low-battery cut-off, which all read PA9 directly.
+- User then asked for the fix. Bench, more: with USB in and the battery full, off → LED off, a key shows a
+  green battery (USB, not charging = full; stock-like). USB out → key shows the normal battery icon; **after a
+  while keys while off show nothing**. USB auto power-on on: plug-in while off powers on (key press before it).
+- Cause of "keys show nothing": `canEnterDeepSleep()` read the raw key pins; a release is debounced over
+  KEY_PRESSED_MASK (25) SysTick ticks, so the unit went back to DeepSleep before the release (the off-state
+  event) was seen. Worked only while the 5 s battery window kept it awake.
+- `fw_emu.py`: `EMU_DEEPSLEEP=real` (no SysTick while PMU_CR.PMOD = 2, as on the chip). Reproduced both on the
+  flashed image: left key 8.0–8.15 s while off → no backlight; USB 7 s / out 16 s / in 19 s → LED, no backlight.
+- Fix (fork, not committed/flashed): `isKeyboardIdle()` in keyboard.c (POWER_OFF_SLEEP only: no debounced key
+  down, no queued event) added to `canEnterDeepSleep()`; `sleepWhilePoweredOff()` calls `updatePowerState()`
+  before DeepSleep so an unplug is recorded. Emulator (real DeepSleep), image c0950807…: key → backlight at
+  8.55 s; USB re-plug at 19 s → backlight 20.25 s; OK held at 7 s → power-on. 0 key-error locks. +24 B flash.
+- Alarm (user, display asleep, source): pulse LED and red alert LED fine, screen flashes (Rad Pro alert flash),
+  **no alarm sound**, and the pulse clicks stop each time the screen flashes. Reading: `triggerAlert()` starts
+  the backlight flash and a steady buzzer tone (alertTicks) together, and `setBuzzerTimer()` ignores shorter
+  pulse clicks while it runs, so silent clicks during each flash mean the alert tone was on but inaudible
+  (volume / drive). To check: Settings → Sound → alert volume (selecting a level plays the alarm).

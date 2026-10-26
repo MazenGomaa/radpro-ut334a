@@ -87,4 +87,8 @@ void onKeyboardUpdate(void);
 ViewEvent getKeyboardEvent(void);
 void clearKeyboardEvents();
 
+#if defined(POWER_OFF_SLEEP)
+bool isKeyboardIdle(void);
+#endif
+
 #endif

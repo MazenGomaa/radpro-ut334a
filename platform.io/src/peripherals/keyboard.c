@@ -417,3 +417,16 @@ ViewEvent getKeyboardEvent(void)
 
     return EVENT_NONE;
 }
+
+#if defined(POWER_OFF_SLEEP)
+// No key down (debounced) and no queued event: a key release is only seen KEY_PRESSED_MASK ticks after the
+// pin goes high, so sleeping while off must wait for it
+bool isKeyboardIdle(void)
+{
+    for (int32_t i = 0; i < KEY_NUM; i++)
+        if (keyboard.previousKeyDown[i])
+            return false;
+
+    return keyboard.eventQueueHead == keyboard.eventQueueTail;
+}
+#endif

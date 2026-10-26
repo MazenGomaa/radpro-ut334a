@@ -27,5 +27,6 @@ Everything else of the port lives in `platform.io/src/fm33/`. Changes outside it
 | `src/system/power.c` | The MCU stays powered while off (`POWER_OFF_SLEEP`): a USB plug-in while off shows the charging screen or, with USB auto power-on, powers on; at boot (= battery connection) auto power-on needs USB present | `POWER_OFF_SLEEP` |
 | `src/system/power.c`, `src/system/settings.h` | Low battery as stock: power off below 3.35 V held for 100 s (`PWR_BAT_LOW_VOLTAGE`, `PWR_BAT_LOW_SECONDS`) | `UT334A` |
 | `src/main.c`, `src/system/power.h` | `sleepWhilePoweredOff()` in the main loop | `POWER_OFF_SLEEP` |
+| `src/peripherals/keyboard.c`, `src/peripherals/keyboard.h` | `isKeyboardIdle()`: SysTick stops in DeepSleep, so sleeping while off waits until the debounced key release has been seen | `POWER_OFF_SLEEP` |
 | `platformio.ini`, `tools/platformio.ini.base`, `tools/build-env.py`, `tools/sign.py` | `uni-t-ut334a-*` environments and signed images | – |
 | `lib/fm33/`, `scripts/ut334a.ld` | FM33LC0xx headers (CMSIS, register bits) and the linker script | – |

@@ -5,7 +5,7 @@ Usage: fw_emu.py <workspace> <firmware.bin> <nm-output.txt> <max_ticks> <key_mas
   screen.png: decode the SPI1 bytes (CS PB3, DC PB8) as ST7789 commands and save the 240x320 frame
   (as the RAM holds it, and as the panel shows it with MADCTL/INVON applied).
   key_mask: GPIO DIN bits forced low, 16 bits per port from PA (e.g. 0x400 = PA10/OK held).
-  EMU_USB=tick: USB powered (PA9 high) from that tick. EMU_BAT=tick:raw: IN9 reads raw from that tick.
+  EMU_USB=on[:off[:on...]]: USB powered (PA9 high) from tick on, unplugged at off, and so on. EMU_BAT=tick:raw: IN9 reads raw from that tick.
   EMU_UART_RX=tick:text: UART0 receives text from that tick ('|' = newline, several commands allowed);
   UART0 TX is printed at the end. After each tick the UART0 IRQ runs while TXBE_IE is set, then once for
   the next received byte (one byte per tick). After each newline it waits for the whole reply (CR LF).
@@ -28,9 +28,15 @@ screen_png = sys.argv[8] if len(sys.argv) > 8 else None
 # (each WFI is still one SysTick), e.g. to power on again from the off state
 import os
 key2 = [int(x, 0) for x in os.environ['EMU_KEY2'].split(':')] if os.environ.get('EMU_KEY2') else None
-deepsleep_continue = os.environ.get('EMU_DEEPSLEEP') == 'continue'
+# EMU_DEEPSLEEP=real: as continue, but SysTick does not run while PMU_CR.PMOD = 2 (as on the chip, where
+# SysTick stops in DeepSleep); time still advances one tick per WFI so EMU_USB/EMU_KEY2 keep working
+deepsleep_real = os.environ.get('EMU_DEEPSLEEP') == 'real'
+deepsleep_continue = os.environ.get('EMU_DEEPSLEEP') == 'continue' or deepsleep_real
 # EMU_USB=tick: USB powered (PA9 high) from that tick; EMU_BAT=tick:raw: battery ADC reads raw from that tick
-usb_from = int(os.environ['EMU_USB']) if os.environ.get('EMU_USB') else None
+# EMU_USB=on[:off[:on...]]: ticks at which USB power toggles, starting with plug-in
+usb_edges = [int(x) for x in os.environ['EMU_USB'].split(':')] if os.environ.get('EMU_USB') else []
+def usb_powered():
+    return sum(1 for t in usb_edges if state['ticks'] >= t) % 2 == 1
 bat_step = [int(x, 0) for x in os.environ['EMU_BAT'].split(':')] if os.environ.get('EMU_BAT') else None
 uart_rx_at, _, uart_rx = os.environ.get('EMU_UART_RX', '').partition(':')
 uart = {'rx': list(uart_rx.replace('|', chr(10)).encode()), 'rx_at': int(uart_rx_at or 0), 'rxbf': False, 'byte': 0,
@@ -88,6 +94,7 @@ def wr(u, acc, addr, size, val, ud):
     elif addr == 0x40000C54: gpiob['do'] |= val
     elif addr == 0x40000C58: gpiob['do'] &= ~val
     log.append((state['ticks'], names.get(addr, hex(addr)), val & 0xFFFFFFFF))
+    if addr == 0x40000100: state['pmu_deep'] = (val & 3) == 2
     if addr == 0x40000100 and (val & 3) == 2:
         state['deepsleeps'] = state.get('deepsleeps', 0) + 1
         if not deepsleep_continue:
@@ -115,7 +122,7 @@ def rd(u, acc, addr, size, val, ud):
         port = (addr - 0x40000C1C) // 0x40
         mask = key_mask if state['ticks'] < key_release else 0
         if key2 and key2[0] <= state['ticks'] < key2[1]: mask |= key2[2]
-        value = din[addr] | (1 << 9 if port == 0 and usb_from is not None and state['ticks'] >= usb_from else 0)
+        value = din[addr] | (1 << 9 if port == 0 and usb_powered() else 0)
         u.mem_write(addr, struct.pack('<I', value & ~((mask >> (16 * port)) & 0xFFFF)))
 def code(u, addr, size, ud):
     if u.mem_read(addr, 2) == b'\x30\xbf':   # WFI
@@ -138,7 +145,10 @@ while True:
     if state['stop'] == 'wfi':
         ctx = [uc.reg_read(r) for r in REGS]
         uc.reg_write(UC_ARM_REG_SP, 0x20007F00); uc.reg_write(UC_ARM_REG_LR, RET | 1)
-        uc.emu_start(syms['SysTick_Handler'] | 1, RET, count=200000)
+        if not (deepsleep_real and state.get('pmu_deep')):
+            uc.emu_start(syms['SysTick_Handler'] | 1, RET, count=200000)
+        else:
+            state['ds_ticks'] = state.get('ds_ticks', 0) + 1
         if pulse_period and state['ticks'] % pulse_period == 0 and 'COMPx_IRQHandler' in syms:
             uc.reg_write(UC_ARM_REG_SP, 0x20007F00); uc.reg_write(UC_ARM_REG_LR, RET | 1)
             uc.emu_start(syms['COMPx_IRQHandler'] | 1, RET, count=200000)
@@ -163,7 +173,7 @@ while True:
                 uc.emu_start(syms['UART0_IRQHandler'] | 1, RET, count=200000)
         for r, v in zip(REGS, ctx): uc.reg_write(r, v)
         state['ticks'] += 1; pc = state['pc']
-        if state['ticks'] >= max_ticks: print(f"stopped after {max_ticks} ticks, DeepSleep entries: {state.get('deepsleeps', 0)}, runs over 5 M instructions: {state.get('long_runs', 0)}"); break
+        if state['ticks'] >= max_ticks: print(f"stopped after {max_ticks} ticks, DeepSleep entries: {state.get('deepsleeps', 0)}, runs over 5 M instructions: {state.get('long_runs', 0)}, ticks without SysTick (DeepSleep): {state.get('ds_ticks', 0)}"); break
     elif state['stop'] is None and state.get('long_runs', 0) < 100:
         # 5 M instructions without a WFI (e.g. a full-screen image draw): carry on from here
         state['long_runs'] = state.get('long_runs', 0) + 1; pc = uc.reg_read(UC_ARM_REG_PC)

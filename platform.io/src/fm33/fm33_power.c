@@ -16,6 +16,7 @@
 
 #include "../fm33/device.h"
 #include "../peripherals/adc.h"
+#include "../peripherals/keyboard.h"
 #include "../peripherals/led.h"
 #include "../system/power.h"
 #include "../system/events.h"
@@ -66,9 +67,10 @@ static bool isAnyKeyDown(void)
            !gpio_get(KEY_OK_PORT, KEY_OK_PIN);
 }
 
+// SysTick stops in DeepSleep, so the keyboard debounce must have seen the release first
 static bool canEnterDeepSleep(void)
 {
-    return !powerEnabled && !isUSBPowered() && !isAnyKeyDown();
+    return !powerEnabled && !isUSBPowered() && !isAnyKeyDown() && isKeyboardIdle();
 }
 
 void WKUP_IRQHandler(void)
@@ -183,6 +185,9 @@ void sleepWhilePoweredOff(void)
 
     if (!canEnterDeepSleep())
         return;
+
+    // The 1 s heartbeat may not have seen a USB unplug yet: record it, or the next plug-in is no edge
+    updatePowerState();
 
     parkDisplay();
 

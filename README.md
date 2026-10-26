@@ -34,15 +34,16 @@ On the **UNI-T UT334A**, Rad Pro lets you:
 Tested on one unit (2026-10-26):
 
 * Working: boot and power on/off, keys, GM counting, pulse click and LED, alert LED, all screens, brightness
-  levels, display sleep, sound and volume settings, settings saved to flash, battery display, charging LED
-  while off.
+  levels, display sleep, sound and volume settings, settings saved to flash, battery display, charging icon,
+  charging LED that stays on until full, USB auto power-on, charging screen when USB is plugged in while off.
+* Fixed, not yet tested on the unit: keys and USB re-plug while off once the unit has gone back to sleep.
 * Added, not yet tested on the unit: **serial link** for data export and streaming through an added 3.3 V
   USB-serial adapter on the MCU's UART0 (the UT334A has no USB data connection; see the installation guide);
-  stock calibration as the "UT334A" tube preset; USB auto power-on; charging LED that stays on until full;
-  lower power use while off; charging screen when USB is plugged in while off; low-battery power-off as stock
+  stock calibration as the "UT334A" tube preset; lower power use while off; low-battery power-off as stock
   (below 3.35 V for 100 s).
-* Not yet verified: alarm sound levels, battery reading accuracy (reads about 1 % high), clock and saved data
-  across a battery disconnect, power consumption while off, counts and calibration against the stock firmware.
+* Known issue: the alarm tone is not heard (pulse clicks pause during each alarm flash).
+* Not yet verified: battery reading accuracy (reads about 1 % high), clock and saved data across a battery
+  disconnect, power consumption while off, counts and calibration against the stock firmware.
 
 Upstream Rad Pro devices export and stream over USB; the UT334A needs the serial adapter for this.
 

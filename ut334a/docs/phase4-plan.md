@@ -1,53 +1,44 @@
 # Phase 4: Rad Pro FM33 port
 
-## Status and next steps (2026-10-26, end of session)
+## Status and next steps (2026-10-26, end of second session)
 **Rad Pro runs on the unit** (bench 2026-10-25/26). Working on hardware: boot, keys, GM counting (≈9 cpm
-background, 0.08–0.09 µSv/h), pulse click + LED, alert LED, all screens (after the COLMOD fix), brightness levels
-(after the PWM-mode fix), sound/volume menu, flash saves (after the key-lock fix), power-off fully dark with a
-clean screen on power-on, display sleep dark (counting continues), wake key only wakes. Log: `docs/ut334a-notes.md`.
+background, 0.08–0.09 µSv/h), pulse click + LED, alert LED, all screens, brightness levels, sound/volume menu,
+flash saves, power-off fully dark, display sleep, charging icon with USB while on, charging LED held while off
+(off on unplug; off with a full battery), USB auto power-on on plug-in. Log: `docs/ut334a-notes.md`.
 
-**On the unit now:** fork commit `aac7617` (flashed 2026-10-26, image SHA-256 afc69f63…).
-**Built, emulator-verified, NOT flashed:** fork commit `0954b16` (= `aa23d2d` + charging screen while off + low battery as
-stock; `aa23d2d` added tube preset, BOR, auto power-on, serial: see step 1).
-First of them, `7250c07` = `aac7617` + charging indicator hold as stock
-(on with USB below 4.1 V, off after 10 min at or above 4.1 V or on USB removal; bench: 4.18 V on the battery
-while charging made the old LED go off after one 5 s re-read). Image SHA-256 56e735f7… (rebuild it, below).
+**On the unit now:** fork `0954b16` (flashed 2026-10-26, signed image SHA-256 c234f030…, VERIFY OK).
+Known bugs in it (both reproduced in the emulator with `EMU_DEEPSLEEP=real`): after the 5 s off-state window,
+(a) keys while off show nothing, (b) a USB re-plug after an unplug while off shows no charging screen (LED only).
+**Fixed in the fork working tree, committed, NOT flashed:** `isKeyboardIdle()` in `canEnterDeepSleep()` and
+`updatePowerState()` before DeepSleep (see notes). Emulator-verified, image SHA-256 c0950807….
 
 **Build:** `~/.platformio/penv/Scripts/pio run -e uni-t-ut334a-en` in `radpro/platform.io` (in Git Bash `pio` is
 not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scratch dir →
-`uni-t-ut334a/firmware/radpro-uni-t-ut334a-en-3.1.2test2.bin`. Check it in the emulator (below) before flashing.
+`uni-t-ut334a/firmware/radpro-uni-t-ut334a-en-3.1.2test2.bin`. Emulator check before flashing, e.g.
+`EMU_DEEPSLEEP=real EMU_KEY2=7000:10500:0x400 python tools/fw_emu.py . <bin> <nm.txt> 14000 0 0 0 <png>`
+(nm.txt = `arm-none-eabi-nm firmware.elf`; key masks: PA10 OK 0x400, PA15 left 0x8000; `EMU_USB=on:off:on`).
 
-**Flashing procedure now** (see `docs/swd-access.md`, user version `docs/install-guide.md`): battery power only
-(ST-Link 3.3 V unconnected: it browns out during erase/program), no NRST needed (`--no-nrst`):
-`tools/fm33_flash.sh dryrun --no-nrst`, then after "erase it":
+**Flashing procedure** (see `docs/swd-access.md`, user version `docs/install-guide.md`): battery power only
+(ST-Link 3.3 V unconnected), `--no-nrst`: `tools/fm33_flash.sh dryrun --no-nrst`, then after "erase it":
 `tools/fm33_flash.sh flash <signed.bin> --erase-it --no-nrst` (~6 min). If it reports the controller key-locked,
 nothing was erased: battery off 5 s, retry.
 
 Next session, in order (stop for confirmation after each):
-1. Flash fork `0954b16` (after "erase it"; rebuild + sign first): charging LED hold, UT334A tube preset, BOR off in
-   DeepSleep with one PLL restart per off period, USB auto power-on, UART0 serial driver, charging screen on USB
-   plug-in while off, low battery 3.35 V held 100 s (see the notes, 2026-10-26). Check: USB while off → green LED stays on (≈ 10 min with a nearly full
-   battery, longer when lower), off on unplugging; charging icon while on. Double-press left while off shows
-   the battery (not checked yet).
-2. **Off-state current** with a meter in series with the battery (stock lasted months, so µA range expected).
-   Datasheet: ≈ 2 µA typ. DeepSleep with BOR off. If high: PC8/PA8 as stock (open-drain outputs), backlight
-   supply path, the 1 s RTC wake-ups (stock does not use them).
-3. Settings + datalog survive a battery disconnect (flash writes now work); RTC across power-off / disconnect.
-4. Alarm buzzer: user reported it "not right" (details still to get); check alert/pulse volume levels.
-5. Battery voltage: Rad Pro 4.073 V vs meter 4.029 V (+1.1 %); take a second point (not while charging), then
-   adjust `PWR_BAT_SCALE_FACTOR` (divider 0.5438 → ≈ 0.5497).
-6. Off-state charging screen on USB plug-in: fixed offline (fork, see notes); check on the bench (USB in while off
-   → charging icon for 5 s, green LED stays on).
-7. GM: the "UT334A" preset (68.27 CPM per µSv/h, stock low band) should read as stock at background; compare
-   with a reference above 0.8 µSv/h if possible (stock uses 46.1 there); HV at the tube (HV probe only).
-8. Optional: faster drawing only if the user finds a screen slow (SPI at 32 MHz is already the per-pixel limit;
-   DMA would only overlap rendering with the transfer, via a buffer layer under mcu-renderer). (A fixed 5 s
-   averaging option was dropped: user decision 2026-10-26.)
-9. Serial: driver written and emulator-tested (UART0, 115200 8N1, opens on USB power). Bench: FTDI on PA13/PA14
-   (1 kΩ into PA13, no VCC), USB charger in, `GET deviceId`; then the CH340. Option: HC-05 on UART5 (PD0/PD1)
-   with a P-MOSFET supply switch on PC9/PC10 and Rad Pro's DATA_MODE (continuity checks first).
-10. USB auto power-on (Settings → Power): plug USB in while off → powers on (setting on); battery reconnect with
-   the setting on and no USB → stays off.
+1. Flash the off-state fix (after "erase it"; rebuild + sign + emulator first). Bench: off, wait > 10 s, press a
+   key → battery screen; USB in, wait for dark, out, wait, in → charging screen.
+2. **Alarm sound:** user saw no alarm tone, and pulse clicks stop at each alert screen flash (display asleep,
+   source). Reading: the alert tone runs (it blocks the clicks) but is inaudible. Check: Settings → Sound →
+   alert volume (each selection plays the alarm); ask what each level sounds like; compare with the stock alarm
+   (pattern/drive, `fm33_buzzer.c`, GPTIM0 1.592 kHz). Earlier report "not right" is this.
+3. **Off-state current** with a meter in series with the battery (µA range expected; datasheet ≈ 2 µA DeepSleep
+   with BOR off). If high: PC8/PA8 as stock, backlight supply path, the 1 s RTC wake-ups.
+4. Settings + datalog survive a battery disconnect; RTC across power-off / disconnect.
+5. Battery voltage: Rad Pro 4.073 V vs meter 4.029 V (+1.1 %); second point (not charging), then
+   `PWR_BAT_SCALE_FACTOR` (divider 0.5438 → ≈ 0.5497).
+6. GM: "UT334A" preset (68.27 CPM per µSv/h) vs stock at background; reference above 0.8 µSv/h if possible.
+7. Serial: FTDI on PA13/PA14 (1 kΩ into PA13, no VCC), USB charger in, 115200 8N1, `GET deviceId`; then CH340.
+   Option: HC-05 on UART5 (PD0/PD1).
+8. Optional: faster drawing only if a screen is slow.
 
 **Live-debug tools** (firmware running, no flash writes): `tools/fm33_backlight.sh <0..10000>` (ATIM CCR1);
 OpenOCD with `fm33-stlink.cfg` + `-c "init; ..."` for register reads/writes (see notes for examples: COLMOD
