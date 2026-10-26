@@ -344,3 +344,29 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   loses its first bytes in the emulator (a real host waits for the reply line).
 - Bench test plan (FTDI): FTDI TX → 1 kΩ → PA13 (QFN 3), FTDI RX ← PA14 (QFN 4), GND; FTDI VCC unconnected,
   3.3 V logic; USB charger plugged in (comm opens on USB power); terminal 115200 8N1, send `GET deviceId` + CR/LF.
+- **Off-state charging screen fixed** (plan item 6, "only after a key press"): on other devices a USB plug-in
+  boots the MCU and boot() shows the battery screen; on the UT334A the MCU keeps running, so the USB edge only
+  requested the backlight and the off view drew with its timer at 0 = a blank, lit screen. Now, while off, the
+  USB edge does what boot() would (power on with USB auto power-on, else the battery/charging screen for 5 s).
+  Emulator, before: USB at 7.0 s → LCD on, backlight at 7.37 s, blank frame. After: charging icon, backlight
+  off again at 11.0 s, green LED on from 7.37 s and stays.
+- Display DMA not done: mcu-renderer sends one pixel per send16() call; SPI1 at 32 MHz needs 32 CPU cycles per
+  pixel on the wire either way, so DMA would only overlap rendering with the transfer (double-buffered layer
+  under mcu-renderer, untimeable in the emulator). No slowness reported: decide at the bench.
+- **Low battery as stock** (user decision): power off below 3.35 V held for 100 s (stock: < 3350 mV for 10
+  samples in a row, each an 8-sample average every ~10 s, no USB). Rad Pro compared one raw reading per second
+  with 3.0 V; at 3.35 V a single dip (alarm, HV burst) would switch off, hence the 100 s persistence. Defines in
+  the UT334A block of `settings.h` (power.c does not include the board header: a first version in `ut334a.h`
+  was silently ignored, caught by the emulator). Emulator, test build with 5 s: battery 3.29 V from 8 s → last
+  HV burst 13.24 s, battery screen to 17.25 s, LCD parked + DeepSleep 17.37 s, counter back to 0.
+- getTubeType() upstream bug: user decision, no upstream PR; listed in the fork's `ut334a/README.md` under
+  "Changes to shared Rad Pro code" (with every other change outside `src/fm33/`).
+- `fw_emu.py`: carries on after 5 M instructions without a WFI (a full-screen image draw at power-on takes
+  more: CPU-bound, not SPI-bound); `EMU_DUMP=sym[+off],...` prints RAM words; the UART model waits for the CR LF
+  of each reply (deviceId's two-part reply no longer eats the next command).
+- Line endings: upstream files are CRLF in the repo; `sed -i` in Git Bash rewrote settings.h as LF (whole-file
+  diff). Restored; edit shared files with Python keeping CRLF.
+- Fixed 5 s averaging idea dropped (user decision): at ≈ 9 cpm background a 5 s window holds < 1 count, so the
+  reading would jump between 0 and ≈ 1.6 µSv/h; Rad Pro's adaptive fast averaging already covers strong sources.
+- Committed: fork `0954b16` (charging screen while off, low battery 3.35 V / 100 s, README shared-code table).
+  Release build (en) checked: RAM 11964 B, flash 48460 B. Next to flash after "erase it".

@@ -7,7 +7,8 @@ background, 0.08–0.09 µSv/h), pulse click + LED, alert LED, all screens (afte
 clean screen on power-on, display sleep dark (counting continues), wake key only wakes. Log: `docs/ut334a-notes.md`.
 
 **On the unit now:** fork commit `aac7617` (flashed 2026-10-26, image SHA-256 afc69f63…).
-**Built, emulator-verified, NOT flashed:** fork commit `aa23d2d` (also tube preset, BOR, auto power-on, serial: see step 1).
+**Built, emulator-verified, NOT flashed:** fork commit `0954b16` (= `aa23d2d` + charging screen while off + low battery as
+stock; `aa23d2d` added tube preset, BOR, auto power-on, serial: see step 1).
 First of them, `7250c07` = `aac7617` + charging indicator hold as stock
 (on with USB below 4.1 V, off after 10 min at or above 4.1 V or on USB removal; bench: 4.18 V on the battery
 while charging made the old LED go off after one 5 s re-read). Image SHA-256 56e735f7… (rebuild it, below).
@@ -23,8 +24,9 @@ not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scrat
 nothing was erased: battery off 5 s, retry.
 
 Next session, in order (stop for confirmation after each):
-1. Flash fork `aa23d2d` (after "erase it"): charging LED hold, UT334A tube preset, BOR off in DeepSleep with one PLL
-   restart per off period, USB auto power-on, UART0 serial driver (see the notes, 2026-10-26). Check: USB while off → green LED stays on (≈ 10 min with a nearly full
+1. Flash fork `0954b16` (after "erase it"; rebuild + sign first): charging LED hold, UT334A tube preset, BOR off in
+   DeepSleep with one PLL restart per off period, USB auto power-on, UART0 serial driver, charging screen on USB
+   plug-in while off, low battery 3.35 V held 100 s (see the notes, 2026-10-26). Check: USB while off → green LED stays on (≈ 10 min with a nearly full
    battery, longer when lower), off on unplugging; charging icon while on. Double-press left while off shows
    the battery (not checked yet).
 2. **Off-state current** with a meter in series with the battery (stock lasted months, so µA range expected).
@@ -34,10 +36,13 @@ Next session, in order (stop for confirmation after each):
 4. Alarm buzzer: user reported it "not right" (details still to get); check alert/pulse volume levels.
 5. Battery voltage: Rad Pro 4.073 V vs meter 4.029 V (+1.1 %); take a second point (not while charging), then
    adjust `PWR_BAT_SCALE_FACTOR` (divider 0.5438 → ≈ 0.5497).
-6. Off-state charging screen only appears after a key press (USB wake while off).
+6. Off-state charging screen on USB plug-in: fixed offline (fork, see notes); check on the bench (USB in while off
+   → charging icon for 5 s, green LED stays on).
 7. GM: the "UT334A" preset (68.27 CPM per µSv/h, stock low band) should read as stock at background; compare
    with a reference above 0.8 µSv/h if possible (stock uses 46.1 there); HV at the tube (HV probe only).
-8. Optional: faster drawing (SPI DMA / 16-bit frames as stock); fixed 5 s averaging option.
+8. Optional: faster drawing only if the user finds a screen slow (SPI at 32 MHz is already the per-pixel limit;
+   DMA would only overlap rendering with the transfer, via a buffer layer under mcu-renderer). (A fixed 5 s
+   averaging option was dropped: user decision 2026-10-26.)
 9. Serial: driver written and emulator-tested (UART0, 115200 8N1, opens on USB power). Bench: FTDI on PA13/PA14
    (1 kΩ into PA13, no VCC), USB charger in, `GET deviceId`; then the CH340. Option: HC-05 on UART5 (PD0/PD1)
    with a P-MOSFET supply switch on PC9/PC10 and Rad Pro's DATA_MODE (continuity checks first).

@@ -39,7 +39,8 @@ Tested on one unit (2026-10-26):
 * Added, not yet tested on the unit: **serial link** for data export and streaming through an added 3.3 V
   USB-serial adapter on the MCU's UART0 (the UT334A has no USB data connection; see the installation guide);
   stock calibration as the "UT334A" tube preset; USB auto power-on; charging LED that stays on until full;
-  lower power use while off.
+  lower power use while off; charging screen when USB is plugged in while off; low-battery power-off as stock
+  (below 3.35 V for 100 s).
 * Not yet verified: alarm sound levels, battery reading accuracy (reads about 1 % high), clock and saved data
   across a battery disconnect, power consumption while off, counts and calibration against the stock firmware.
 

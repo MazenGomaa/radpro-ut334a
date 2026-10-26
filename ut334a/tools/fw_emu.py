@@ -8,7 +8,8 @@ Usage: fw_emu.py <workspace> <firmware.bin> <nm-output.txt> <max_ticks> <key_mas
   EMU_USB=tick: USB powered (PA9 high) from that tick. EMU_BAT=tick:raw: IN9 reads raw from that tick.
   EMU_UART_RX=tick:text: UART0 receives text from that tick ('|' = newline, several commands allowed);
   UART0 TX is printed at the end. After each tick the UART0 IRQ runs while TXBE_IE is set, then once for
-  the next received byte (one byte per tick, i.e. a host that waits for each response).
+  the next received byte (one byte per tick). After each newline it waits for the whole reply (CR LF).
+  EMU_DUMP=sym[+offset],...: print 32-bit RAM values at the end (also as float).
 SysTick is simulated: every WFI runs SysTick_Handler once. The flash controller is modelled minimally
 (page erase on the 0x1234ABCD request, ERD/PRD always set); SPI1 is always ready, the ADC reads
 2640 on IN9 and 1500 on VREF (a ~3.9 V battery). Calls to address 0 (unset callbacks) are
@@ -33,7 +34,7 @@ usb_from = int(os.environ['EMU_USB']) if os.environ.get('EMU_USB') else None
 bat_step = [int(x, 0) for x in os.environ['EMU_BAT'].split(':')] if os.environ.get('EMU_BAT') else None
 uart_rx_at, _, uart_rx = os.environ.get('EMU_UART_RX', '').partition(':')
 uart = {'rx': list(uart_rx.replace('|', chr(10)).encode()), 'rx_at': int(uart_rx_at or 0), 'rxbf': False, 'byte': 0,
-        'tx': bytearray(), 'tx_ticks': []}
+        'tx': bytearray(), 'tx_ticks': [], 'await_from': None}
 sys.path.insert(0, root + '/tools')
 from svd_map import load
 names = {a: nm for a, (nm, f) in load(root + '/vendor/FM33LC0XX_DFP/SVD/FM33LC0XX.SVD').items()}
@@ -147,15 +148,25 @@ while True:
                 ier = struct.unpack('<I', uc.mem_read(0x40011C04, 4))[0]
                 if ier & 0x2:
                     pass
+                elif uart['await_from'] is not None:
+                    # A host waits for the whole reply line (CR LF) before sending the next command
+                    if len(uart['tx']) > uart['await_from'] and uart['tx'].endswith(bytes([13, 10])):
+                        uart['await_from'] = None
+                    break
                 elif (ier & 0x100) and uart['rx'] and state['ticks'] >= uart['rx_at'] and not rx_done:
                     uart['byte'] = uart['rx'].pop(0); uart['rxbf'] = True; rx_done = True
+                    if uart['byte'] == 10:
+                        uart['await_from'] = len(uart['tx'])
                 else:
                     break
                 uc.reg_write(UC_ARM_REG_SP, 0x20007F00); uc.reg_write(UC_ARM_REG_LR, RET | 1)
                 uc.emu_start(syms['UART0_IRQHandler'] | 1, RET, count=200000)
         for r, v in zip(REGS, ctx): uc.reg_write(r, v)
         state['ticks'] += 1; pc = state['pc']
-        if state['ticks'] >= max_ticks: print(f"stopped after {max_ticks} ticks, DeepSleep entries: {state.get('deepsleeps', 0)}"); break
+        if state['ticks'] >= max_ticks: print(f"stopped after {max_ticks} ticks, DeepSleep entries: {state.get('deepsleeps', 0)}, runs over 5 M instructions: {state.get('long_runs', 0)}"); break
+    elif state['stop'] is None and state.get('long_runs', 0) < 100:
+        # 5 M instructions without a WFI (e.g. a full-screen image draw): carry on from here
+        state['long_runs'] = state.get('long_runs', 0) + 1; pc = uc.reg_read(UC_ARM_REG_PC)
     else:
         print(f"null renderer calls skipped: {state.get('nullcalls', 0)}"); print(f"stop: {state['stop']} at tick {state['ticks']} (pc 0x{uc.reg_read(UC_ARM_REG_PC):X})"); break
 prev = None
@@ -222,3 +233,7 @@ if screen_png:
     print(f"saved {screen_png}")
 if uart['tx']:
     print(f"UART0 TX (ticks {uart['tx_ticks'][0]}..{uart['tx_ticks'][-1]}): {bytes(uart['tx'])!r}")
+for name in filter(None, os.environ.get('EMU_DUMP', '').split(',')):   # EMU_DUMP=sym[+offset],...: 32-bit values
+    sym, _, off = name.partition('+')
+    addr = syms[sym] + int(off or '0', 0)
+    raw = bytes(uc.mem_read(addr, 4)); print(f"{name} @0x{addr:08X} = 0x{struct.unpack('<I', raw)[0]:08X} ({struct.unpack('<f', raw)[0]:.4g} as float)")
