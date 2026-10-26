@@ -18,5 +18,8 @@
 void initSystemClock(void);
 void startSystemPLL(void);
 
+// ut334a.c
+void parkDisplay(void);
+
 // fm33_tube.c
 void onTubeHVTick(void);

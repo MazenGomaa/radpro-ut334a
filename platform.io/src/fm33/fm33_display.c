@@ -6,10 +6,10 @@
  *
  * License: MIT
  *
- * PWM on ATIM CH1N as in the stock firmware (0x6A1C, 0x69C4). The backlight is lit while PB2 is low
- * (bench, 2026-10-25: CCR1 0 brightest, 10000 dark with PWM mode 2), so OC1M = PWM mode 1: OC1REF is high
- * while CNT < CCR1 and the complementary output CH1N is low then, so the on-time is CCR1. ATIM outputs also
- * need BDTR.MOE.
+ * PWM on ATIM CH1N as in the stock firmware (0x6A1C, 0x69C4). The backlight is lit while PB2 is high
+ * (bench, 2026-10-26: PB2 driven low as GPIO = off). With only CC1NE enabled, CH1N follows OC1REF (not
+ * inverted), so OC1M = PWM mode 1 makes the on-time CCR1 (bench sweep with mode 2: CCR1 0 brightest,
+ * 10000 dark). ATIM outputs also need BDTR.MOE.
  */
 
 #if defined(FM33)

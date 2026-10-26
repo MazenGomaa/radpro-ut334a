@@ -170,8 +170,16 @@ static void onDisplaySetReset(bool value)
     gpio_modify(DISPLAY_RESX_PORT, DISPLAY_RESX_PIN, !value);
 }
 
+static bool displayPowered;
+
+static void powerUpDisplay(void);
+
 static void onDisplaySetChipselect(bool value)
 {
+    // The panel is unpowered after parkDisplay(): any transfer powers it up and re-inits it first
+    if (value && !displayPowered)
+        powerUpDisplay();
+
     spi_wait_while_busy(DISPLAY_SPI);
 
     gpio_modify(DISPLAY_CSX_PORT, DISPLAY_CSX_PIN, !value);
@@ -195,9 +203,9 @@ static void onDisplaySend16(uint16_t value)
     spi_send(DISPLAY_SPI, (value >> 0) & 0xff);
 }
 
-void initDisplay(void)
+// GPIO idle levels, LCD supply on (P-MOSFET, low = on), then let it settle (stock: 1 ms)
+static void setDisplayLinesPowered(void)
 {
-    // GPIO
     gpio_set(DISPLAY_RESX_PORT, DISPLAY_RESX_PIN);
     gpio_set(DISPLAY_CSX_PORT, DISPLAY_CSX_PIN);
     gpio_clear(DISPLAY_DCX_PORT, DISPLAY_DCX_PIN);
@@ -208,13 +216,60 @@ void initDisplay(void)
     gpio_setup_af_dfs(DISPLAY_SCL_PORT, DISPLAY_SCL_PIN, GPIO_OUTPUTTYPE_PUSHPULL, GPIO_PULL_FLOATING, false);
     gpio_setup_af_dfs(DISPLAY_SDA_PORT, DISPLAY_SDA_PIN, GPIO_OUTPUTTYPE_PUSHPULL, GPIO_PULL_FLOATING, false);
 
-    // LCD supply (P-MOSFET, low = on), then let it settle (stock: 1 ms)
 #if defined(DISPLAY_POWER_ACTIVE_LOW)
     gpio_clear(DISPLAY_POWER_PORT, DISPLAY_POWER_PIN);
 #else
     gpio_set(DISPLAY_POWER_PORT, DISPLAY_POWER_PIN);
 #endif
     sleep(2);
+
+    displayPowered = true;
+}
+
+// After parkDisplay(): supply on, hardware reset, full panel init (displayInitSequence starts with SLPOUT,
+// MADCTL and COLMOD, so it is complete after a reset). The panel stays in display-off until setDisplayEnabled().
+static void powerUpDisplay(void)
+{
+    setDisplayLinesPowered();
+
+    gpio_clear(DISPLAY_RESX_PORT, DISPLAY_RESX_PIN);
+    sleep(1);
+    gpio_set(DISPLAY_RESX_PORT, DISPLAY_RESX_PIN);
+    sleep(120);
+
+    mr_send_sequence(&mr, displayInitSequence);
+}
+
+// Power-off, as stock (0xA884): LCD supply off and the panel lines driven low so they do not feed the
+// unpowered panel. The next transfer powers it up again (onDisplaySetChipselect).
+void parkDisplay(void)
+{
+    if (!displayPowered)
+        return;
+
+    spi_wait_while_busy(DISPLAY_SPI);
+
+    gpio_clear(DISPLAY_SCL_PORT, DISPLAY_SCL_PIN);
+    gpio_clear(DISPLAY_SDA_PORT, DISPLAY_SDA_PIN);
+    gpio_setup_output(DISPLAY_SCL_PORT, DISPLAY_SCL_PIN, GPIO_OUTPUTTYPE_PUSHPULL);
+    gpio_setup_output(DISPLAY_SDA_PORT, DISPLAY_SDA_PIN, GPIO_OUTPUTTYPE_PUSHPULL);
+    gpio_clear(DISPLAY_RESX_PORT, DISPLAY_RESX_PIN);
+    gpio_clear(DISPLAY_CSX_PORT, DISPLAY_CSX_PIN);
+    gpio_clear(DISPLAY_DCX_PORT, DISPLAY_DCX_PIN);
+
+#if defined(DISPLAY_POWER_ACTIVE_LOW)
+    gpio_set(DISPLAY_POWER_PORT, DISPLAY_POWER_PIN);
+#else
+    gpio_clear(DISPLAY_POWER_PORT, DISPLAY_POWER_PIN);
+#endif
+
+    displayPowered = false;
+    displayEnabled = false;
+}
+
+void initDisplay(void)
+{
+    setDisplayLinesPowered();
 
     // SPI: 32 MHz (APBCLK / 2), as stock
     rcc_enable_spi1();
@@ -241,6 +296,14 @@ void initDisplay(void)
 
 void setDisplayEnabled(bool value)
 {
+    // Parked panel: already dark, nothing to send
+    if (!value && !displayPowered)
+    {
+        displayEnabled = false;
+
+        return;
+    }
+
     mr_st7789_set_display(&mr, value);
     mr_st7789_set_sleep(&mr, !value);
 

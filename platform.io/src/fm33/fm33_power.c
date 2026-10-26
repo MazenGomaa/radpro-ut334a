@@ -15,7 +15,10 @@
 #if defined(FM33)
 
 #include "../fm33/device.h"
+#include "../peripherals/adc.h"
+#include "../peripherals/led.h"
 #include "../system/power.h"
+#include "../system/events.h"
 
 static bool powerEnabled;
 
@@ -139,10 +142,49 @@ static void enterDeepSleep(void)
     setDeepSleepWakeup(false);
 }
 
+// Charging indicator while off, as stock (0x26F4): pulse LED colour on while on USB power and the battery
+// is below the charging threshold. Rad Pro owns the LED while powered on.
+#define CHARGING_CHECK_TICKS (5 * SYSTICK_FREQUENCY)
+
+static bool chargingLED;
+static uint32_t chargingCheckTick;
+
+static void updateChargingLED(void)
+{
+    bool value = false;
+    if (!isPoweredOn() && isUSBPowered())
+    {
+        if ((currentTick - chargingCheckTick) >= CHARGING_CHECK_TICKS)
+        {
+            chargingCheckTick = currentTick;
+
+            readBatteryVoltage();
+        }
+
+        value = isBatteryCharging();
+    }
+    else
+        chargingCheckTick = currentTick - CHARGING_CHECK_TICKS;
+
+    if (value != chargingLED)
+    {
+        chargingLED = value;
+
+        setPulseLED(value);
+    }
+}
+
 // Called by the main loop after all events are handled. SysTick stops in DeepSleep; the RTC 1 s
-// wake-up only reloads the IWDT.
+// wake-up only reloads the IWDT. Before DeepSleep the LCD supply is cut as in the stock firmware.
 void sleepWhilePoweredOff(void)
 {
+    updateChargingLED();
+
+    if (!canEnterDeepSleep())
+        return;
+
+    parkDisplay();
+
     while (canEnterDeepSleep())
     {
         iwdt_reload();
