@@ -37,17 +37,23 @@ proc fm33_check_main_array {addr} {
     }
 }
 
-# Flash register clock and erase/program clock (FLM Init), clear stale flags
+# Flash register clock and erase/program clock (FLM Init), refuse a locked controller, clear stale flags.
+# KEYSTA = 100 (key error lock) is cleared only by a power-on reset or NRST, not by SYSRESETREQ.
 proc fm33_flash_begin {} {
     global FM33_RCC_PCLKCR2 FM33_RCC_OPCCR2 FM33_FLS_ISR FM33_ISR_ERD FM33_ISR_PRD FM33_ISR_ERRORS
     fm33_wr $FM33_RCC_PCLKCR2 [expr {[fm33_rd $FM33_RCC_PCLKCR2] | 0x20}]
     fm33_wr $FM33_RCC_OPCCR2 [expr {[fm33_rd $FM33_RCC_OPCCR2] | 0x400000}]
+    set isr [fm33_rd $FM33_FLS_ISR]
+    if {(($isr >> 17) & 7) == 4} {
+        error [format "flash controller key-locked (FLS_ISR 0x%08X): disconnect the battery for 5 s (or hold NRST), then retry. Nothing was erased." $isr]
+    }
     fm33_wr $FM33_FLS_ISR [expr {$FM33_ISR_ERD | $FM33_ISR_PRD | $FM33_ISR_ERRORS}]
 }
 
+# No KEY write here: every operation already closed with KEY = 0, and KEY = 0 in the protected state is a
+# key error that locks the controller until a power-on reset (bench, 2026-10-25).
 proc fm33_flash_end {} {
-    global FM33_RCC_OPCCR2 FM33_FLS_KEY FM33_FLS_EPCR
-    fm33_wr $FM33_FLS_KEY 0
+    global FM33_RCC_OPCCR2 FM33_FLS_EPCR
     fm33_wr $FM33_FLS_EPCR 0
     fm33_wr $FM33_RCC_OPCCR2 [expr {[fm33_rd $FM33_RCC_OPCCR2] & ~0x400000}]
 }
@@ -79,16 +85,29 @@ proc fm33_erase_page {addr} {
 
 proc fm33_program_words {addr words} {
     global FM33_FLS_EPCR FM33_FLS_KEY FM33_ISR_PRD
-    # EREQ = 0, PREQ = 1
-    fm33_wr $FM33_FLS_EPCR [expr {([fm33_rd $FM33_FLS_EPCR] & ~0x303) | 0x2}]
+    # EREQ = 0, PREQ = 1, again before every word: the controller clears PREQ after each program, and a
+    # program key without PREQ is a key error that locks the controller until reset (as in the FLM).
+    set epcr [expr {([fm33_rd $FM33_FLS_EPCR] & ~0x303) | 0x2}]
     foreach w $words {
         fm33_check_main_array $addr
+        fm33_wr $FM33_FLS_EPCR $epcr
         fm33_wr $FM33_FLS_KEY 0xA5A5A5A5
         fm33_wr $FM33_FLS_KEY 0xF1F1F1F1
         fm33_wr $addr $w
         fm33_wait_flag $FM33_ISR_PRD "program" $addr
         set addr [expr {$addr + 4}]
     }
+}
+
+# Halt at the reset vector without NRST: only once the stock firmware is gone (it parks the SWD pins; Rad Pro
+# and a blank chip leave them free). Vector catch on, then SYSRESETREQ.
+proc fm33_reset_halt {} {
+    global FM33_DHCSR FM33_DEMCR FM33_AIRCR
+    write_memory $FM33_DHCSR 32 0xA05F0001
+    write_memory $FM33_DEMCR 32 [expr {[fm33_rd $FM33_DEMCR] | 1}]
+    catch { write_memory $FM33_AIRCR 32 0x05FA0004 }
+    echo ">>> Reset requested (SYSRESETREQ), waiting for the halt."
+    return [fm33_wait_halt 5000]
 }
 
 # Leave debug state and reset the chip so it boots the new image (the halted PC belongs to the old one)

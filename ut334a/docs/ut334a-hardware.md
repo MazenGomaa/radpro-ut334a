@@ -51,7 +51,7 @@ QFN-32 numbering from datasheet fig. 2-4 (pin 1 = PD8, counter-clockwise); pads 
 | 15 | PB13 | **LCD RESET** | out PP | – | low | [S 0x594C] |
 | 16 | PB14 | **LCD power switch**: gate of a P-MOSFET (marked "39K") from VBAT to the LCD supply | out PP | – | low = LCD on | [S 0x594C, 0xA90C, 0x6C56], [B] |
 | 17 | PC2 | **Bi-colour LED, side B**. Bench: PC2 and PC3 drive the two ends of an anti-parallel LED pair. PC2 high (PC3 low) = colour B, used for alarm beeps | out PP | – | high | [S 0xB37C], [B] |
-| 18 | PC3 | **Bi-colour LED, side A**: PC3 high (PC2 low) = colour A; flashes ~10 ms per GM pulse, on while charging | out PP | – | high | [S 0x2750, 0x6254, 0x26F4], [B] |
+| 18 | PC3 | **Bi-colour LED, side A**: PC3 high (PC2 low) = colour A (green, bench 2026-10-26); flashes ~10 ms per GM pulse, on while charging | out PP | – | high | [S 0x2750, 0x6254, 0x26F4], [B] |
 | 19 | PC4 | **HV-rail switch**: N-MOSFET ("C") → gate of P-MOSFET ("39K") VBAT → **HVbatt** (LM3478 supply and battery divider) | out PP | – | high = on | [S 0x594C, 0xA904], [B] |
 | 20 | PC5 | **HV converter run/stop**: 200 Ω → N-MOSFET ("C") gate; drain → 160 kΩ → LM3478 pin 7 (FA/SD), drain also 47 kΩ to HVbatt. PC5 high = FA/SD sees 160 kΩ to GND = converter runs; PC5 low = FA/SD pulled up = shutdown. Firmware bursts: 1 tick in 5 (4.9 ms every 24.4 ms, 41 Hz, 20 %) + one burst after every GM pulse | out PP | – | high = HV on | [S 0x2788, 0x627E–0x629E], [B] |
 | 21 | PC8 | **Battery sense**, ADC_IN9, divider (ratio 0.55) on **HVbatt**, so only valid while PC4 is on | analog | – | – | [E 0x6950], [S 0x5658], [B] |
@@ -84,9 +84,10 @@ Notes:
 | Bus | SPI1 master, 8-bit for commands; 16-bit frames for CASET/RASET data and pixels; SCK=PB9, MOSI=PB11 | [S 0xBA90, 0x5C04] |
 | CS / DC / RST | PB3 / PB8 / PB13 (GPIO) | [S 0x594C, 0x6208] |
 | Pixel transfer | DMA channel 6 → SPI1 (`0xBB04`) | [S 0x6B34, 0xBB04] |
-| Backlight | PWM on PB2 (ATIM CH1N): PSC=1, ARR=9999 → **3.2 kHz**, CCR1=5000 (50 %) at init; how the "Screen Brightness" menu maps to CCR1 is not traced yet | [E 0x6A1C, 0x69C4] |
+| Backlight | PWM on PB2 (ATIM CH1N): PSC=1, ARR=9999 → **3.2 kHz**, CCR1=5000 (50 %) at init. **Lit while PB2 is high** (bench: PB2 low as GPIO = off). With only CC1NE enabled, CH1N follows OC1REF, so PWM mode 1 gives on-time = CCR1 (mode 2 inverts: CCR1 0 = brightest). Stock menu mapping not traced | [E 0x6A1C, 0x69C4], [B] |
 | Sleep/wake | sleep: ATIM off (`0x5EB8`); wake: SLPOUT (0x11) + ATIM on (`0x58B8`) | [S] |
 | Colour format | RGB565 (COLMOD 0x05) | [S 0x59C6] |
+| Init order | **COLMOD must come after SLPOUT**: this panel ignores COLMOD while in sleep and stays at the 18-bit default (text repeated 3×, striped greys). Stock order: SLPOUT, 120 ms, MADCTL, COLMOD 0x05 | [B 2026-10-25] |
 
 **Power-up and init sequence** (`0x594C` → `0x5960`, exact):
 ```
@@ -190,6 +191,7 @@ PB14 the LCD supply (both P-MOSFET high-side switches).
 |---|---|---|
 | RTC | FM33 RTC on the 32.768 kHz crystal; init `0x8330`, IRQ 2 handler `0x7830`; default date written if the RTC is invalid | [S 0x8330] |
 | Settings and 10 records | **kept in RAM only.** The firmware never programs or erases flash: the only flash-controller register it touches is FLS_RDCR (wait states). Data survive "off" (DeepSleep) but are lost if the battery is disconnected | [S, whole-image search of FLS refs] |
+| Flash key state machine (for our own writes) | After an erase/program, **one** KEY write closes it; **KEY = 0 in the protected state is a key error** (KEYERR, KEYSTA 100) that blocks erase/program until a power-on reset or NRST (SYSRESETREQ does not clear it). Status reads 0 while the flash clocks (PCLKCR2.FLASH_PCE, OPCCR2.FLASHCKE) are off | [B 2026-10-26] |
 | Defaults | from the C runtime initialised data (`analysis/ram_initial.bin`, emulated) | [E 0xC0] |
 
 ## 9. Other
@@ -206,7 +208,7 @@ PA13/PA14 → no tracks; keys: PA15 left, PA10 OK/power.
 
 | # | Question | Measurement | What the result means |
 |---|---|---|---|
-| 3 | LCD backlight supply | Is the backlight LED powered from the PB14-switched rail, VBAT or 3.0 V, and how does PB2 drive it (transistor)? | Backlight driver polarity |
+| 3 | LCD backlight supply | **Polarity resolved (bench 2026-10-26): lit while PB2 high.** Supply source (PB14 rail, VBAT or 3.0 V) still unknown | Off-state current |
 | 5 | HV burst behaviour | (optional, HV probe only) tube voltage ripple with the stock burst pattern | Baseline for Rad Pro HV profile |
 | 6 | Pads 2/3 | Continuity from pads 2/3 to anything other than QFN 1/32 | Confirms SWD pins are free for Rad Pro |
 | 7 | Tube model | Re-read the glass marking with magnification | Cross-check with 45 CPM per µSv/h |

@@ -1,31 +1,46 @@
 # Phase 4: Rad Pro FM33 port
 
-## Status and next steps (2026-10-25)
-Done in code, verified in the emulator (`tools/fw_emu.py`), not yet on hardware: build env `uni-t-ut334a-<lang>`
-(fork `radpro/`, branch `ut334a`), core drivers (clock, SysTick/IWDT, RTC, power-off = DeepSleep), hardware
-drivers (display, backlight, keys, tube + HV bursts, buzzer with volume, LED, battery ADC, flash), SWD
-flash/restore tools. Details per step: `docs/ut334a-notes.md` (2026-10-25 entries A–D). Comm is a stub.
+## Status and next steps (2026-10-26, end of session)
+**Rad Pro runs on the unit** (bench 2026-10-25/26). Working on hardware: boot, keys, GM counting (≈9 cpm
+background, 0.08–0.09 µSv/h), pulse click + LED, alert LED, all screens (after the COLMOD fix), brightness levels
+(after the PWM-mode fix), sound/volume menu, flash saves (after the key-lock fix), power-off fully dark with a
+clean screen on power-on, display sleep dark (counting continues), wake key only wakes. Log: `docs/ut334a-notes.md`.
+
+**On the unit now:** fork commit `aac7617` (flashed 2026-10-26, image SHA-256 afc69f63…).
+**Built, emulator-verified, NOT flashed:** fork commit `7250c07` = `aac7617` + charging indicator hold as stock
+(on with USB below 4.1 V, off after 10 min at or above 4.1 V or on USB removal; bench: 4.18 V on the battery
+while charging made the old LED go off after one 5 s re-read). Image SHA-256 56e735f7… (rebuild it, below).
+
+**Build:** `~/.platformio/penv/Scripts/pio run -e uni-t-ut334a-en` in `radpro/platform.io` (in Git Bash `pio` is
+not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scratch dir →
+`uni-t-ut334a/firmware/radpro-uni-t-ut334a-en-3.1.2test2.bin`. Check it in the emulator (below) before flashing.
+
+**Flashing procedure now** (see `docs/swd-access.md`, user version `docs/install-guide.md`): battery power only
+(ST-Link 3.3 V unconnected: it browns out during erase/program), no NRST needed (`--no-nrst`):
+`tools/fm33_flash.sh dryrun --no-nrst`, then after "erase it":
+`tools/fm33_flash.sh flash <signed.bin> --erase-it --no-nrst` (~6 min). If it reports the controller key-locked,
+nothing was erased: battery off 5 s, retry.
 
 Next session, in order (stop for confirmation after each):
-1. **Dry run** (read-only): wire as in `docs/swd-access.md`, user holds NRST, `tools/fm33_flash.sh dryrun`
-   (background, ~3 min window); tell the user to release NRST at ARMED. Expect UNPROTECTED, and note the
-   "100 reads" timing (flashing ≈ 6 SWD operations per word: 11 874 words for Rad Pro, 52 833 for the restore).
-2. **Build and sign**: `pio run -e uni-t-ut334a-en` in `radpro/platform.io`, then run `radpro/tools/sign.py`
-   from a scratch directory; the image is `uni-t-ut334a/firmware/radpro-uni-t-ut334a-en-<version>.bin`
-   (128 KB, CRC footer). Never flash the unsigned `firmware.bin` (checksum alarm at every boot).
-3. **Flash**, only after the user says "erase it": `tools/fm33_flash.sh flash <signed.bin> --erase-it` with the
-   NRST hold. It erases all 512 pages, programs, compares a full readback, then resets. If verify fails:
-   `tools/fm33_flash.sh restore --erase-it`.
-4. **Bring-up** (one at a time, user checks on the bench):
-   a. boots at all? SWD now connects without NRST (PD7/PD8 left free); a dark unit after a reset → restore or debug.
-   b. display: image, orientation, colours (MADCTL/INVON), backlight polarity and whether it needs PC4.
-   c. keys: left/right/OK, long OK = on/off; power-off → DeepSleep current, wake by key/USB.
-   d. GM: counts vs stock on the same background; HV at the tube (HV probe only) with the 5/19 ms bursts.
-   e. buzzer clicks and volume levels; LED colours (pulse vs alert).
-   f. battery voltage vs a multimeter (divider 0.5438, PC4 settle 5 ms), charging indication on USB.
-   g. RTC keeps time through power-off; settings and datalog survive a battery disconnect (flash writes).
-   h. sleep current; then calibration (stock ≈ 66.7 CPM/µSv/h low range; tube sensitivity setting).
-5. Later: comm over UART0 (PA13 RX / PA14 TX) after the CH340 mod; LCD supply cut in power-off.
+1. Flash `7250c07` (after "erase it"). Check: USB while off → green LED stays on (≈ 10 min with a nearly full
+   battery, longer when lower), off on unplugging; charging icon while on. Double-press left while off shows
+   the battery (not checked yet).
+2. **Off-state current** with a meter in series with the battery (stock lasted months, so µA range expected).
+   If high: compare with stock parking (0xA884 also parks PC8, PA8 open-drain; ADC/COMP/LPTIM off).
+3. Settings + datalog survive a battery disconnect (flash writes now work); RTC across power-off / disconnect.
+4. Alarm buzzer: user reported it "not right" (details still to get); check alert/pulse volume levels.
+5. Battery voltage: Rad Pro 4.073 V vs meter 4.029 V (+1.1 %); take a second point (not while charging), then
+   adjust `PWR_BAT_SCALE_FACTOR` (divider 0.5438 → ≈ 0.5497).
+6. Off-state charging screen only appears after a key press (USB wake while off).
+7. GM: counts vs stock on the same background; HV at the tube (HV probe only); calibration.
+8. Optional: faster drawing (SPI DMA / 16-bit frames as stock); fixed 5 s averaging option.
+9. Later: comm over UART0 (PA13 RX / PA14 TX) after the CH340 mod (data export, streaming).
+
+**Live-debug tools** (firmware running, no flash writes): `tools/fm33_backlight.sh <0..10000>` (ATIM CCR1);
+OpenOCD with `fm33-stlink.cfg` + `-c "init; ..."` for register reads/writes (see notes for examples: COLMOD
+resend with the core halted, PB2/PC4 pokes). Emulator: `tools/fw_emu.py` (SPI → ST7789 frame PNG, strict FLS
+key model, `EMU_DEEPSLEEP=continue`, `EMU_KEY2=start:end:mask`, `EMU_SPI_CMDS_FROM=tick`). Flash-tool model
+test: `tools/fm33_fakefls.tcl`.
 
 ---
 

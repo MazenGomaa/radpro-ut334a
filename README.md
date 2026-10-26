@@ -1,8 +1,9 @@
 > **UNI-T UT334A port (unofficial fork).** This fork adds Rad Pro support for the UNI-T UT334A Geiger counter
 > (Fudan FM33LC043N). The port was written with Claude (Anthropic's AI assistant) from a reverse-engineered map of
 > the hardware, made by decompiling and emulating the stock firmware and confirming the findings on the bench. It is
-> experimental: **dump your own unit's stock firmware before flashing** (see [the backup guide](ut334a/docs/backup-guide.md)). Not affiliated
-> with UNI-T or with the upstream Rad Pro project. Upstream: [Gissio/radpro](https://github.com/Gissio/radpro).
+> experimental: **dump your own unit's stock firmware before flashing** (see the
+> [UT334A installation guide](ut334a/docs/install-guide.md)). Not affiliated with UNI-T or with the upstream Rad Pro
+> project. Upstream: [Gissio/radpro](https://github.com/Gissio/radpro).
 
 [![Rad Pro Simulator - Try me!](https://gissio.github.io/radpro-simulator/radpro-title-tryme.png)](https://gissio.github.io/radpro-simulator/)
 
@@ -17,16 +18,30 @@ Try the [Rad Pro simulator](https://gissio.github.io/radpro-simulator/)!
 
 **Rad Pro** is a custom firmware designed to enhance the capabilities of supported Geiger counters. It provides advanced measurement tools, data logging, alerting, and visualization features beyond stock firmware.
 
-With Rad Pro, you can:
+On the **UNI-T UT334A**, Rad Pro lets you:
 
-* Monitor radiation levels in real time
+* Monitor radiation levels in real time, with pulse clicks and the pulse LED
 * Compute statistically meaningful averages
 * Track accumulated radiation dose
-* Configure alerts for rate and dose thresholds
+* Configure alerts for rate and dose thresholds (alert LED and sound)
 * Visualize historical trends over multiple time scales
-* Log and export measurement data
-* Stream data to external platforms ([gmcmap.com](https://gmcmap.com), [radmon.org](https://radmon.org), [safecast.org](https://map.safecast.org), [opensensemap.org](https://opensensemap.org))
+* Log measurement data to the internal flash
 * Generate high-quality random data
+
+### UT334A port status
+
+Tested on one unit (2026-10-26):
+
+* Working: boot and power on/off, keys, GM counting, pulse click and LED, alert LED, all screens, brightness
+  levels, display sleep, sound and volume settings, settings saved to flash, battery display, charging LED
+  while off.
+* Not available: **data export and streaming** to a PC or to gmcmap.com, radmon.org, safecast.org or
+  opensensemap.org. The UT334A has no USB data connection; a serial port through an added USB-serial adapter
+  is planned.
+* Not yet verified: alarm sound levels, battery reading accuracy (reads about 1 % high), clock and saved data
+  across a battery disconnect, power consumption while off, counts and calibration against the stock firmware.
+
+The upstream Rad Pro feature list (all devices) also includes data export and streaming over USB.
 
 ## Installation
 
@@ -40,6 +55,7 @@ Supported devices:
 * [FNIRSI GC-01/JOY-IT JT-RAD01 installation guide](docs/devices/FNIRSI%20GC-01/install.md)
 * [FNIRSI GC-03 installation guide](docs/devices/FNIRSI%20GC-03/install.md)
 * [GQ GMC-800 installation guide](docs/devices/GQ%20GMC-800/install.md)
+* [UNI-T UT334A installation guide](ut334a/docs/install-guide.md) (this fork, experimental)
 
 ## Documentation
 

@@ -161,3 +161,135 @@ All register values copied from emulating the stock routines (`tools/stock_trace
 ## 2026-10-25: end of session
 - State saved for the bench session: code complete except comm, everything emulator-verified only. Next steps
   are listed at the top of `phase4-plan.md`; `CLAUDE.md` points there.
+
+## 2026-10-25: bench step 1, dry run (read-only) OK
+- `tools/fm33_flash.sh dryrun`: DPIDR 0x0BB11477, armed, halted at reset vector, option bytes `AA 33 55 CC`,
+  ACLOCK 0xFFFFFFFF ×2 → UNPROTECTED (unchanged). UID as before. FLS_EPCR/FLS_ISR 0, RCC_PCLKCR2 0x80. Core released.
+- SWD 125 kHz (200 kHz not available): 100 reads = 368 ms → 3.7 ms per operation. Estimate at ~6 ops/word:
+  Rad Pro ≈ 71 k ops ≈ 4.5 min, stock restore ≈ 317 k ops ≈ 20 min (within the script's 30 min timeout).
+
+## 2026-10-25: bench step 2, build and sign OK
+- Clean build `uni-t-ut334a-en` (fork commit 2b93cba): RAM 11 940 B, flash 47 292 B. Note: in Git Bash `pio` is
+  not on PATH; use `~/.platformio/penv/Scripts/pio`.
+- Signed from a scratch dir: `radpro-uni-t-ut334a-en-3.1.2test2.bin`, 131 072 B,
+  SHA-256 `838e1615bb021023…837b`. Vectors: SP 0x20006000, Reset 0x000053A5; 0x20 = STATES_BASE 0x20000,
+  0x24 = 0x200; CRC footer @0x1FFFC = 0x32C5D2DA.
+- `fm33_flashgen.py`: 11 874 words, vector check passed; expected image = the signed image + 128 KB of 0xFF.
+
+## 2026-10-25: bench step 3, first flash attempt FAILED (tool bug), fixed offline
+- User said "erase it". `fm33_flash.sh flash`: all 512 pages erased OK, then program failed at 0x4 with
+  FLS_ISR 0x00080200 = KEYERR, KEYSTA 100 (key error lock, cleared only by reset). Only word 0 was programmed.
+- Cause: `fm33_program_words` set PREQ once before the loop. The controller clears PREQ after every program, so
+  the second key pair arrived without PREQ → key error. The vendor FLM ProgramPage (disassembled) clears EREQ and
+  sets PREQ before every word; the port driver `fm33_flash.c` programWord already does. Erase was fine because
+  `fm33_erase_page` sets EREQ every page.
+- Fix: EPCR (PREQ) written before every word. New strict model `tools/fm33_fakefls.tcl` (clears the request
+  after each op, locks on a key without the matching request) reproduces the bench failure exactly with the old
+  proc; with the fix Rad Pro and the stock restore both read back identical (87 k / 375 k SWD ops ≈ 5.5 / 23 min).
+- Unit state now: main flash blank except word 0, option bytes/info area untouched (page erase only), so it
+  cannot boot (dark) but SWD is free.
+
+## 2026-10-25: bench step 3, second flash attempt cut off: brown-outs on the ST-Link 3.3 V
+- User said "erase it" again. Erase OK; programming died with an SWD fault on FLS_KEY. Diagnostics (read-only):
+  a first dump read every programmed word as 0 (garbage, taken across a reset); DHCSR showed S_RESET_ST and
+  retired instructions mid-session; a repeated dump showed the real state: **words 0..0x1BA0 (1769) correct,
+  rest erased**. IWDT ruled out (IWDT_CR 0, DBG_CR 3, no IWDTN flag). 8-bit reads of the option bytes glitched
+  during a reset (32-bit reads always `0xCC5533AA 0x0000FFFF`, unchanged).
+- Cause (user): **the battery was disconnected and the board ran from the ST-Link 3.3 V pin**; it browns out under
+  erase/program current (RSTFR had PDRN). Rule 6 stands: battery only, ST-Link 3.3 V unconnected.
+- With the stock firmware gone, SWD connects **without NRST** (no resets in 60 s hands-off). Added `--no-nrst` to
+  `fm33_flash.sh` (vector catch + SYSRESETREQ, `fm33_reset_halt` in `fm33_flash.tcl`): no tweezers on pad 1.
+
+## 2026-10-25: bench step 3 done, Rad Pro flashed and verified
+- On battery, ST-Link 3.3 V unconnected, `--no-nrst`: dry run OK (SYSRESETREQ halt, unprotected, 100 reads 340 ms),
+  then `fm33_flash.sh flash radpro-uni-t-ut334a-en-3.1.2test2.bin --erase-it --no-nrst`: 512 pages erased,
+  11 874 words programmed, full 256 KB readback identical to the expected image, SYSRESETREQ issued.
+  Next: bring-up 4a (does it boot).
+
+## 2026-10-25: bring-up 4a, first boot of Rad Pro on the unit
+- Boots (long OK). Works: pulse click, pulse LED, red alarm LED, keys change the display. Alarm flashes the
+  screen (Rad Pro alarm signalling). Alarm buzzer "not right" (details pending).
+- Display: portrait layout recognisable (title bar, readout, units) but with striped/speckled bands and doubled
+  text. Emulator (fw_emu.py now decodes SPI1 + CS/DC as ST7789 → PNG) renders the same build clean (Day theme,
+  correct orientation), so the byte stream logic is right.
+- Live SWD checks with the firmware running (no reset): SPI1 CR1 0x100, CR2 0x9 (TXO, SPIEN), ISR 0x1002 →
+  no TXCOL (no dropped bytes). Live CR1 BAUD → ÷16 (4 MHz): same picture → not signal integrity or a TXBE/BUSY
+  timing race. Next: sharp photos of main screen + menu to compare with the emulator frames.
+
+## 2026-10-25: display garbage solved (COLMOD ignored in sleep)
+- Upright photos: every text line repeated 3x side by side, fine stripes in greys, colour speckles → panel in
+  18-bit mode (ST7789 default COLMOD 0x66) while we send RGB565. mcu-renderer sends COLMOD right after reset,
+  before SLPOUT; this panel ignores it there. Stock: SLPOUT, 120 ms, MADCTL, COLMOD 0x05.
+- Live test (core halted, `3A 05` sent over SPI1 from SWD, resumed): all screens clean (menu, readouts,
+  history). Survives Rad Pro power off/on (panel kept powered).
+- Fix in `ut334a.c` displayInitSequence: SLPOUT, 120 ms, MADCTL 00, COLMOD 05 first. Emulator frame identical.
+- Also confirmed: long press left in a measurement view = Rad Pro EVENT_KEY_RESET (clears that measurement).
+- SPI1 restored to ÷2 (32 MHz) live after the 4 MHz test.
+
+## 2026-10-25: backlight polarity (bench, live CCR1 writes with tools/fm33_backlight.sh)
+- With OC1M = PWM mode 2 on CH1N: CCR1 0 brightest, dimmer step by step, 10000 dark → the backlight is lit
+  while PB2 is low. So Rad Pro "high" (CCR1 = 10000) was a black screen, not a crash (core kept running, no
+  reset flags; silence = 9 cpm background). Also explains the backlight lit while off/charging (off = PB2 low).
+- Fix: PWM mode 1 (on-time = CCR1), DISPLAY_BACKLIGHT_ACTIVE_LOW (off = PB2 high). Emulator: PB2 set at init,
+  CCMR1 0x68, CCR1 0x14BE.
+- Battery: Rad Pro 4.073 V vs meter 4.029 V (+1.1 %), divider tweak pending a second point.
+- Volume menu is Settings → Sound (not Pulses).
+
+## 2026-10-25: flash key lock (third flash attempt refused at page 0; nothing erased)
+- `fm33_flash.sh flash` stopped at the first page erase: FLS_ISR 0x00080200 (KEYERR, KEYSTA 100) already set
+  before the session. Flash contents verified intact (first 128 KB = the running build).
+- Bench test after a power-on reset, core halted, clocks on (FLASH_PCE + FLASHCKE): FLS_ISR 0 → one write
+  KEY = 0 → 0x00080200. **KEY = 0 in the protected state is a key error**; only one KEY write right after an
+  operation is allowed (closes it). The lock survives SYSRESETREQ; power-on reset (battery) or NRST clears it.
+  With the flash clocks off the status reads 0 even when locked.
+- Both our tool (`fm33_flash_end`) and the port driver (`lockFlash`) wrote KEY = 0 a second time. So the good
+  flash ended locked, and Rad Pro locked the controller at its first save: **settings were never stored**.
+- Fixes: no extra KEY write in `fm33_flash_end` / `lockFlash`; `fm33_flash_begin` refuses a locked controller
+  ("disconnect the battery, nothing was erased"). Models: `fm33_fakefls.tcl` and `fw_emu.py` now lock on a stray
+  KEY = 0 (both reproduce the bench lock with the old code); fixed tool ends unlocked for Rad Pro and the stock
+  restore; fixed firmware does its 4 first-boot flash operations without a lock.
+- Flashed after a battery power cycle: build with display init + backlight + flash-lock fixes (sign4,
+  e235c591…), 11 873 words, VERIFY OK, controller left unlocked. After Rad Pro's first boot (it ran its flash
+  operations: FLASH_PCE set) FLS_ISR reads 0 → no lock.
+
+## 2026-10-26: backlight off level corrected; stock-style power-off parking; charging LED
+- User: power-off and display sleep kept the backlight lit (not so with the earlier builds). Live, Rad Pro off:
+  PB2 high (our "off") = lit; PB2 driven low = dark. So the backlight is lit while PB2 is HIGH; the inverted
+  sweep came from the PWM mode alone (with only CC1NE, CH1N follows OC1REF). DISPLAY_BACKLIGHT_ACTIVE_LOW
+  removed, PWM mode 1 kept (brightness levels confirmed OK by the user).
+- Power-off now as stock 0xA884 for the display: before DeepSleep `parkDisplay()` drives PB9/PB11 (as GPIO),
+  PB13, PB3, PB8 low and cuts the LCD supply (PB14 high). The next SPI transfer powers it up again: supply on,
+  RESX pulse, 120 ms, full init (SLPOUT, MADCTL, COLMOD 05, …). PC4 (HVbatt) was already low when off.
+- Charging indicator while off, as stock: PC3 (colour A) on while USB powered and battery < 4.1 V, battery
+  re-read every 5 s.
+- Emulator (now able to run through DeepSleep, EMU_DEEPSLEEP / EMU_KEY2 / EMU_SPI_CMDS_FROM): boot → off →
+  parked + DeepSleep at 5.4 s → OK held at 7 s → supply on + reset at 8.0 s, SLPOUT 120 ms later, clean frame.
+- Still to measure: off-state current with a meter in series with the battery (stock lasted months).
+
+## 2026-10-26: fork aac7617 flashed
+- Rebuilt `uni-t-ut334a-en` at fork `aac7617`, signed (image SHA-256 afc69f63…). Emulator: boot → off →
+  DeepSleep → OK held at 7 s → wake, 4 flash operations, 0 key-error locks, clean frame after wake.
+- Dryrun `--no-nrst`: unprotected, FLS_ISR 0. Flash after "erase it": 512 pages erased, 11 955 words,
+  VERIFY OK (256 KB readback b2e3d576…), reset and run. Bench checks of step 1 to follow.
+- Power-off: backlight fully dark (user).
+- Power-on after parking: clean screen, normal backlight (user).
+- Display sleep: backlight fully dark, pulse click + LED continue (user).
+- Wake from display sleep (left key): clean screen, normal brightness (user).
+- Wake press only wakes the screen (no view change) (user).
+- USB plugged while off: screen stays dark; LED (colour A = **green**) lights a couple of seconds, then off.
+  Expected steady while battery < 4.1 V. Suspect: with charge current flowing the battery terminal voltage rises
+  above the 4.1 V threshold (4057 CV 4.2 V; Rad Pro also reads +1.1 % high), so the first read is under 4.1 V and
+  the next 5 s re-read is over. To confirm with a meter on the battery while charging.
+- Meter, off + USB: battery 4.18 V (> 4.1 V threshold) → cause confirmed. User: stock kept the green LED on
+  while charging, until full.
+- Stock 0x26F4 has a hold-off our port lacks: battery (8-sample avg) < 4100 mV and USB → charging flag on,
+  PC3 set, counter 0x20000E68 = 0; otherwise the flag clears only once the counter passes 300 (or USB gone).
+  The counter is incremented in `measurement_tick` (capped at 350), most likely once per 1.95 s window →
+  ≈ 10 min of ≥ 4.1 V before "Battery Full" (per-step instead would be ≈ 30 s; nesting not fully certain).
+  Our `isBatteryCharging()` drops as soon as one 5 s re-read is ≥ 4.1 V.
+- Fix (fork `7250c07`): `isBatteryCharging()` now latches as stock: on with USB below 4.1 V, off when USB
+  is removed or after `PWR_BAT_CHARGING_HOLD_TICKS` (600 s) of readings at or above 4.1 V. Used by the
+  off-state LED and Rad Pro's charging icon. No DeepSleep while on USB, so SysTick times the hold.
+- `fw_emu.py`: `EMU_USB=tick` (PA9 high), `EMU_BAT=tick:raw` (IN9 step; 2640 ≈ 3.9 V, 2830 ≈ 4.18 V).
+  Test build with a 20 s hold, USB from 0, 4.18 V from 15 s: PC3 set at 0.37 s, cleared at 35.0 s. Release build
+  (600 s, image SHA-256 56e735f7…): boot → off → wake run clean, 0 key-error locks. Not flashed.

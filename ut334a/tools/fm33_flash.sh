@@ -4,6 +4,9 @@
 #   tools/fm33_flash.sh dryrun                       read-only: connect, halt, check protection, release
 #   tools/fm33_flash.sh flash <signed.bin> --erase-it   erase all 512 pages, program the image, verify, reset
 #   tools/fm33_flash.sh restore --erase-it           same with backup/ut334a_stock_1.bin (SHA-256 checked first)
+#   add --no-nrst (last) to halt by SYSRESETREQ instead: only when the stock firmware is not on the chip
+#
+# Power the board from its battery only: on the ST-Link 3.3 V pin the chip browns out during erase/program.
 #
 # Wiring and NRST procedure: docs/swd-access.md. Hold NRST (pad 1) to GND, start the script, release NRST
 # when it prints ARMED. Run from the workspace root.
@@ -13,6 +16,11 @@ O=~/.platformio/packages/tool-openocd
 OPENOCD="$O/bin/openocd.exe -s $O/openocd/scripts -f fm33-stlink.cfg -f tools/fm33_flash.tcl"
 STOCK_SHA=6815991f2185751a0f31808c5e766a3113ab04f9bfa443a6e09d5304b611d939
 work=$(mktemp -d)
+HALT='fm33_arm; if {![fm33_wait_halt]} { fm33_release; shutdown };'
+if [ "${@: -1}" = --no-nrst ]; then
+    HALT='if {![fm33_reset_halt]} { fm33_release; shutdown };'
+    set -- "${@:1:$(($# - 1))}"
+fi
 
 run_session() {
     # Retry until the debug port answers (only while NRST is held)
@@ -28,7 +36,7 @@ run_session() {
     return 1
 }
 
-SESSION_HEAD='fm33_arm; if {![fm33_wait_halt]} { fm33_release; shutdown }; if {![fm33_protection]} { echo ">>> ABORT: not unprotected"; fm33_release; shutdown };'
+SESSION_HEAD="$HALT"' if {![fm33_protection]} { echo ">>> ABORT: not unprotected"; fm33_release; shutdown };'
 
 case "$1" in
 dryrun)
@@ -43,8 +51,11 @@ flash|restore)
     fi
     python -I tools/fm33_flashgen.py "$image" "$work/program.tcl" "$work/expected.bin"
     cp "$work/program.tcl" tools/.fm33_program.tcl
-    run_session "$SESSION_HEAD"' if {[catch {source tools/.fm33_program.tcl} e]} { echo ">>> ERROR: $e"; fm33_flash_end; fm33_release; shutdown }; dump_image tools/.fm33_readback.bin 0x0 0x40000; echo ">>> Readback written."; fm33_reset_run; shutdown'
+    run_session "$SESSION_HEAD"' if {[catch {source tools/.fm33_program.tcl} e]} { echo ">>> ERROR: $e"; fm33_flash_end; fm33_release; shutdown }; dump_image tools/.fm33_readback.bin 0x0 0x40000; echo ">>> Readback written."; fm33_reset_run; shutdown' | tee "$work/session.log"
     rm -f tools/.fm33_program.tcl
+    if grep -q 'Nothing was erased' "$work/session.log"; then
+        echo ">>> Flash untouched (controller locked). Disconnect the battery for 5 s, then retry." >&2; exit 1
+    fi
     if [ -f tools/.fm33_readback.bin ] && cmp -s tools/.fm33_readback.bin "$work/expected.bin"; then
         echo ">>> VERIFY OK: readback matches $image ($(sha256sum tools/.fm33_readback.bin | cut -c1-16)...)"
     else

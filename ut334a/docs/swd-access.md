@@ -13,6 +13,17 @@
 Square pad = pad 1. Hold NRST low by hand (tweezers or a push-button from pad 1 to GND). Never short pad 1 while
 the ST-Link RST wire is attached.
 
+## With Rad Pro on the chip (2026-10-26)
+- Rad Pro (and a blank chip) leaves PD7/PD8 as SWD: OpenOCD connects **without NRST**, also while the firmware
+  runs (register reads/writes live). Halt at the reset vector by vector catch + SYSRESETREQ:
+  `tools/fm33_flash.sh dryrun|flash|restore ... --no-nrst`.
+- **Battery power only.** On the ST-Link 3.3 V pin the chip browns out under erase/program current (resets
+  mid-flash, garbage reads). Rule 6 stands.
+- Avoid touching pad 1 during a session: a bounce resets the chip mid-operation.
+- The flash controller key lock (see `ut334a-hardware.md` §8) survives SYSRESETREQ; `fm33_flash.sh` refuses to
+  start when locked ("nothing was erased") → battery off 5 s, retry.
+- 125 kHz SWD (200 kHz not available): ~3.5 ms per operation; Rad Pro flash ≈ 6 min, stock restore ≈ 23 min.
+
 ## Why it is awkward
 - The stock firmware parks **PD7/PD8 as outputs driven low** early in `main()` (board GPIO init 0x6B64), so SWD
   only answers while NRST is held low, or once the core is halted at the reset vector. Our Rad Pro port must leave
@@ -71,4 +82,5 @@ replace it with e.g. `fm33_arm; fm33_wait_halt; fm33_protection; fm33_release; s
 
 Keep a second copy off this PC. Restore: `tools/fm33_flash.sh restore --erase-it` (checks the SHA-256, erases all
 512 pages, programs, compares a full readback). Flashing Rad Pro: `tools/fm33_flash.sh flash <signed.bin> --erase-it`.
-Read-only connection test: `tools/fm33_flash.sh dryrun`. Not yet run on hardware (2026-10-25).
+Read-only connection test: `tools/fm33_flash.sh dryrun`. Flash used on hardware since 2026-10-25 (with `--no-nrst`
+once Rad Pro is on the chip); restore not yet run on hardware. User guide: `docs/install-guide.md`.
