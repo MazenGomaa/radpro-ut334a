@@ -436,3 +436,49 @@ All register values copied from emulating the stock routines (`tools/stock_trace
 - Missing in the port: auto shutdown, µGy label, Schedule start delay, on-screen Records, ICRP page. Decision:
   no stock restore just to look (restore ≈ 23 min, return needs a manual NRST hold; a patched SWD-on stock image
   was judged riskier than holding NRST once).
+
+## 2026-10-27: fork 91b25e6 flashed (off-state fix + Overview + 3 min History)
+- Rebuilt `uni-t-ut334a-en` (RAM 12184 B, flash 48976 B), signed image SHA-256 7bdcbd40…01d2b4. Emulator (real
+  DeepSleep): key at 8.0 s while off → backlight 8.55 s; USB 7 s / out 16 s / in 19 s → backlight 20.25 s;
+  OK held 7 s → power-on, Overview shown; 0 key-error locks.
+- Dry run clean (unprotected), then flashed after "erase it", `--no-nrst`, battery power: 512 pages erased,
+  12294 words programmed, VERIFY OK. Bench checks pending.
+- Bench (user, all OK): power-on → Overview; OK cycles Average/Cumulative → Max + secondary unit → bar → back;
+  Right → History on 3 min (1 s/point), Right again → Overview; Left held 1 s resets timers, cumulative and Max;
+  Overview in Dusk and Night readable, separators visible; off > 10 s + Left → battery screen (bug a fixed);
+  off, USB in → dark → out → in → charging screen without a key (bug b fixed).
+
+## 2026-10-27: alarm tone, narrowed down (bench + code, unfinished)
+- Bench (user): Settings → Sound → Alert volume preview plays the alarm at each level (as described). Real rate
+  alarm (lowest threshold) **with the display on: tone OK**. **From display sleep: screen flash + red LED, no tone**
+  (and, from before, pulse clicks stop during each flash).
+- Code: menu preview and real alert share `triggerAlert()` → `setBuzzerTimer(alertTicks, 1, alertVolume)` (GPTIM0
+  CCR1 = steady PWM, 250/500 ms). The only display-sleep difference found so far: each alert flash wakes the panel
+  (`requestBacklightAlert()` → view redraw → `setDisplayEnabled(true)`: SLPOUT + its delay via `sleep()`/WFI, full
+  redraw, then SLPIN after the 0.5 s flash). Nothing in that path writes GPTIM0 or PB10; 8002A SD is tied to GND.
+  Hypotheses still open: (1) supply droop when panel + backlight start while the amplifier drives the speaker
+  (would need a scope on the battery / 8002A VDD during an alert from sleep); (2) something in the wake path
+  re-zeroing CCR1 (check with the emulator: GPTIM0_CCR1 writes during an alert from display sleep).
+- Emulator: display-on alarm run (rate alarm poked at 11 s, pulse every 50 ticks) shows normal CCR1 writes.
+  Display-sleep run (alarm poked at 48 s) was too slow (> 10 min) and was stopped; next time poke displaySleep
+  to 10 s (`settings+12`, bits 7-9 = 0) to shorten it. Settings layout (ARM bitfields, no container straddling):
+  word 1 bits 4-7 rateAlarm (index 1 = lowest), bit 18 alertSound, bit 22 alertDisplayFlash.
+- On the unit: rate alarm still set to the lowest value; set it back (Settings → Alerts → Rate alarm).
+- Session stopped here (internet out); nothing flashed after 91b25e6.
+
+## 2026-10-27: alert wakes the display (stock behaviour), flashed
+- User, stock behaviour: display asleep + high radiation → pulse LED blinks with the display dark; when the alarm
+  hits, the unit wakes the display and both the tone and the pulse LED run.
+- Emulator, alert from display sleep on 91b25e6: GPTIM0_CCR1 tone 250 ms every second, PB10 DFS/FCR and
+  RCC_PCLKCR4 GT0 untouched by the backlight re-init each flash → the register side is correct; the silence is
+  on the hardware side during the per-flash panel wake (cause not identified).
+- Fork change (not committed): `ALERT_WAKES_DISPLAY` (UT334A only): `triggerAlert()` calls
+  `requestBacklightTrigger()` when `!isDisplayAwake()`, else the usual 0.5 s flash. Emulator: display wakes at
+  19.1 s and stays on for the display-sleep time; tone unchanged. Side effect: if the alert lasts past the sleep
+  time, ≈ 0.6 s dark gap, then a new wake. +16 B flash.
+- Flashed after "erase it" (dry run clean, `--no-nrst`), signed image b4674e27…, 12298 words, VERIFY OK.
+  Bench check pending.
+- Bench (user): alarm from display sleep → display wakes and stays on, tone audible, pulse LED keeps blinking.
+  Works. A short key press does not acknowledge (Rad Pro: only Left held 1 s = EVENT_KEY_RESET, which while an
+  alert is pending only clears alertPending); the hold works. Stock acknowledgement not remembered; user keeps
+  the Rad Pro behaviour. Alarm step closed.

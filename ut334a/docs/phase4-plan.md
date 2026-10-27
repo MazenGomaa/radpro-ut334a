@@ -6,15 +6,13 @@ background, 0.08–0.09 µSv/h), pulse click + LED, alert LED, all screens, brig
 flash saves, power-off fully dark, display sleep, charging icon with USB while on, charging LED held while off
 (off on unplug; off with a full battery), USB auto power-on on plug-in. Log: `docs/ut334a-notes.md`.
 
-**On the unit now:** fork `0954b16` (flashed 2026-10-26, signed image SHA-256 c234f030…, VERIFY OK).
-Known bugs in it (both reproduced in the emulator with `EMU_DEEPSLEEP=real`): after the 5 s off-state window,
-(a) keys while off show nothing, (b) a USB re-plug after an unplug while off shows no charging screen (LED only).
-**Fixed in the fork working tree, committed, NOT flashed:** `isKeyboardIdle()` in `canEnterDeepSleep()` and
-`updatePowerState()` before DeepSleep (see notes). Emulator-verified, image SHA-256 c0950807….
-**Also committed, NOT flashed (2026-10-27, emulator-verified):** stock-style **Overview** screen (rate large +
-Average + Cumulative rows; OK cycles Average/Cumulative → Max + secondary-unit rate → bar), Up/Down cycle reduced
-to Overview ↔ History, Reset clears rate/max/average/cumulative, **3 min History tab** (1 s per point, 200 s),
-medium font with digits. Flags `MEASUREMENT_OVERVIEW`, `HISTORY_3_MINUTES` (UT334A builds only).
+**On the unit now:** fork with `ALERT_WAKES_DISPLAY` on top of `91b25e6` (flashed 2026-10-27, signed image SHA-256
+b4674e27…, VERIFY OK; settings were reset by the full erase): the off-state fix (keys while off after 5 s, USB
+re-plug charging screen), the stock-style **Overview** screen (rate large + Average + Cumulative rows; OK cycles
+Average/Cumulative → Max + secondary-unit rate → bar), Up/Down = Overview ↔ History, Reset clears
+rate/max/average/cumulative, **3 min History tab**, and alerts waking a sleeping display (tone audible). All
+bench-checked 2026-10-27, incl. Dusk/Night. Flags `MEASUREMENT_OVERVIEW`, `HISTORY_3_MINUTES`,
+`ALERT_WAKES_DISPLAY` (UT334A builds only).
 
 **Build:** `~/.platformio/penv/Scripts/pio run -e uni-t-ut334a-en` in `radpro/platform.io` (in Git Bash `pio` is
 not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scratch dir →
@@ -30,14 +28,9 @@ not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scrat
 nothing was erased: battery off 5 s, retry.
 
 Next session, in order (stop for confirmation after each):
-1. Flash the current fork (off-state fix + Overview + 3 min History) after "erase it"; rebuild + sign +
-   emulator first. Bench: off, wait > 10 s, press a key → battery screen; USB in, wait for dark, out, wait, in →
-   charging screen. Overview: OK cycles the three tabs, Right → History (opens on 3 min), Left held 1 s → reset;
-   check the Overview in Day/Dusk/Night on the real panel.
-2. **Alarm sound:** user saw no alarm tone, and pulse clicks stop at each alert screen flash (display asleep,
-   source). Reading: the alert tone runs (it blocks the clicks) but is inaudible. Check: Settings → Sound →
-   alert volume (each selection plays the alarm); ask what each level sounds like; compare with the stock alarm
-   (pattern/drive, `fm33_buzzer.c`, GPTIM0 1.592 kHz). Earlier report "not right" is this.
+1. ~~Flash the current fork~~ done 2026-10-27 (`91b25e6`, all bench checks OK).
+2. ~~Alarm sound~~ done 2026-10-27: `ALERT_WAKES_DISPLAY` (an alert wakes a sleeping display, as stock);
+   tone OK from display sleep; acknowledge = Left held 1 s.
 3. **Off-state current** with a meter in series with the battery (µA range expected; datasheet ≈ 2 µA DeepSleep
    with BOR off). If high: PC8/PA8 as stock, backlight supply path, the 1 s RTC wake-ups.
 4. Settings + datalog survive a battery disconnect; RTC across power-off / disconnect.

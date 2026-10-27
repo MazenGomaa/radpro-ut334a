@@ -476,6 +476,12 @@ void triggerAlert(bool alarm)
 {
     syncTick();
 
+#if defined(ALERT_WAKES_DISPLAY)
+    // As stock: an alert wakes a sleeping display for the full display sleep time
+    if (!isDisplayAwake())
+        requestBacklightTrigger();
+    else
+#endif
     if (settings.alertDisplayFlash)
         requestBacklightAlert();
 
