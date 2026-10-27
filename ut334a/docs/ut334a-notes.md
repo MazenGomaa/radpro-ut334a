@@ -533,3 +533,10 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   off/on → RTC 2025-01-01 00:00:10, weekday 3. (Note: the check runs only at power-on; a date scrambled while the
   unit stays on is not corrected, which may explain the 2002 case.) Clock then set over SWD to UTC
   2026-10-27 20:15:34; time zone setting is UTC after the erase.
+
+## 2026-10-27: end of fourth session
+- Pushed: fork `ad932fc` (public, branch ut334a; checked: no backup/analysis/binaries in the new commits) and the
+  private workspace. On the unit: `ad932fc` (image 15eec4ab…).
+- User decisions: step 6 (GM calibration) dropped: only an Am-241 smoke-detector source (no known dose rate),
+  no reference meter. Remaining: step 9 (stock features, auto shutdown + µGy first), then step 5 (battery
+  calibration) as the final step; after that the project is closed. Next session starts with step 9.

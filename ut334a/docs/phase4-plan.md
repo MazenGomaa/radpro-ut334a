@@ -1,13 +1,14 @@
 # Phase 4: Rad Pro FM33 port
 
-## Status and next steps (2026-10-27, end of third session)
+## Status and next steps (2026-10-27, end of fourth session)
 **Rad Pro runs on the unit** (bench 2026-10-25/26). Working on hardware: boot, keys, GM counting (≈9 cpm
 background, 0.08–0.09 µSv/h), pulse click + LED, alert LED, all screens, brightness levels, sound/volume menu,
 flash saves, power-off fully dark, display sleep, charging icon with USB while on, charging LED held while off
 (off on unplug; off with a full battery), USB auto power-on on plug-in. Log: `docs/ut334a-notes.md`.
 
-**On the unit now:** fork `383dc38` (`ALERT_WAKES_DISPLAY` on top of `91b25e6`) (flashed 2026-10-27, signed image SHA-256
-b4674e27…, VERIFY OK; settings were reset by the full erase): the off-state fix (keys while off after 5 s, USB
+**On the unit now:** fork `ad932fc` (flashed 2026-10-27, image 15eec4ab…: serial on UART5 PD0/PD1, RTC invalid-date fix,
+`ALERT_WAKES_DISPLAY` on top of `91b25e6`; earlier image
+b4674e27…; settings were reset by the full erase): the off-state fix (keys while off after 5 s, USB
 re-plug charging screen), the stock-style **Overview** screen (rate large + Average + Cumulative rows; OK cycles
 Average/Cumulative → Max + secondary-unit rate → bar), Up/Down = Overview ↔ History, Reset clears
 rate/max/average/cumulative, **3 min History tab**, and alerts waking a sleeping display (tone audible). All
@@ -27,22 +28,24 @@ not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scrat
 `tools/fm33_flash.sh flash <signed.bin> --erase-it --no-nrst` (~6 min). If it reports the controller key-locked,
 nothing was erased: battery off 5 s, retry.
 
-Next session, in order (stop for confirmation after each):
-1. ~~Flash the current fork~~ done 2026-10-27 (`91b25e6`, all bench checks OK).
-2. ~~Alarm sound~~ done 2026-10-27: `ALERT_WAKES_DISPLAY` (an alert wakes a sleeping display, as stock);
-   tone OK from display sleep; acknowledge = Left held 1 s.
-3. ~~Off-state current~~ done 2026-10-27: 3–8 µA off; ≈ 40 mA on (display on), ≤ 365 mA peak in an alarm.
-4. ~~Settings across a battery disconnect~~ done 2026-10-27: settings kept; RTC survives short disconnects
-   (board capacitance); invalid RTC → 2025-01-01 at power-on (fork, flashed, verified with an SWD-written year 02).
-5. **(Moved to last, user 2026-10-27: needs a lower battery.)** Battery voltage: Rad Pro 4.073 V vs meter 4.029 V (+1.1 %); second point (not charging), then
-   `PWR_BAT_SCALE_FACTOR` (divider 0.5438 → ≈ 0.5497).
-6. GM: "UT334A" preset (68.27 CPM per µSv/h) vs stock at background; reference above 0.8 µSv/h if possible.
-7. ~~Serial~~ done 2026-10-27: **UART5 on PD0/PD1 (QFN 30/31)**, FTDI 3.3 V (TX → 1 kΩ → QFN 30), 115200 8N1,
-   USB charger in; `GET deviceId` etc. OK. Option: HC-05 would now need another UART (UART0 on PA13/PA14).
-8. Optional: faster drawing only if a screen is slow.
-9. Stock features still missing (from `analysis/ghidra/strings.txt`, see notes 2026-10-27): auto shutdown after
-   N hours, µGy unit label, Schedule (start delay + timed measurement), on-screen Records (10 sessions),
-   ICRP info page. Quick ones first (auto shutdown, µGy) if the user wants them.
+Remaining work (user 2026-10-27: after these two the project is closed). Stop for confirmation after each:
+1. **Step 9, stock features still missing** (from `analysis/ghidra/strings.txt`, see notes 2026-10-27): quick
+   ones first, **auto shutdown after N hours** and the **µGy unit label**; then, if the user wants them,
+   Schedule (start delay + timed measurement), on-screen Records (10 sessions), ICRP info page. Code + emulator,
+   then one flash for all of it (settings reset by the erase: set theme/alarm/time zone again; clock can be set
+   over serial `SET deviceTime <unix UTC>` or over SWD).
+2. **Step 5, battery calibration (final step):** needs a lower battery. Rad Pro 4.073 V vs meter 4.029 V (+1.1 %)
+   at the first point; second point (3.6–3.9 V, USB out, Settings → Statistics → Battery vs meter across the
+   battery), then `PWR_BAT_SCALE_FACTOR` (divider 0.5438 → ≈ 0.5497 if it is a pure scale error), flash, close.
+
+Done this session (2026-10-27): flashed `91b25e6` and bench-checked the off-state fix, Overview and 3 min History;
+alarm from display sleep fixed (`ALERT_WAKES_DISPLAY`, acknowledge = Left held 1 s); off-state current 3–8 µA
+(on ≈ 40 mA, alarm peak ≤ 365 mA); settings survive a battery disconnect, RTC survives short ones (board
+capacitance), invalid RTC → 2025-01-01 at power-on (verified); serial moved to **UART5 PD0/PD1 (QFN 30/31)** and
+tested with an FTDI on COM7 (TX → 1 kΩ → QFN 30, 115200 8N1, USB charger in). Both repos pushed.
+Dropped: step 6 (GM calibration): only an Am-241 smoke-detector source is available (alpha + weak 59.5 keV
+gamma, no known dose rate), no reference meter, stock not restored → the "UT334A" preset (68.27 CPM per µSv/h,
+from the stock firmware) stays. Step 8 (faster drawing): no slow screen reported.
 
 **Live-debug tools** (firmware running, no flash writes): `tools/fm33_backlight.sh <0..10000>` (ATIM CCR1);
 OpenOCD with `fm33-stlink.cfg` + `-c "init; ..."` for register reads/writes (see notes for examples: COLMOD
