@@ -95,10 +95,12 @@
 #define ALERT_LED_PORT GPIOC
 #define ALERT_LED_PIN 2
 
-#define USART_INTERFACE UART0
-#define USART_RX_PORT GPIOA
-#define USART_RX_PIN 13
-#define USART_TX_PORT GPIOA
-#define USART_TX_PIN 14
-#define USART_IRQ UART0_IRQn
-#define USART_IRQ_HANDLER UART0_IRQHandler
+// Serial: UART5 on PD0 RX / PD1 TX (QFN 30/31, wires soldered there; stock leaves them unused)
+#define USART_INTERFACE UART5
+#define USART_PCE_Msk RCC_PCLKCR3_UART5_PCE_Msk
+#define USART_RX_PORT GPIOD
+#define USART_RX_PIN 0
+#define USART_TX_PORT GPIOD
+#define USART_TX_PIN 1
+#define USART_IRQ UART5_IRQn
+#define USART_IRQ_HANDLER UART5_IRQHandler

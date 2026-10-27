@@ -32,14 +32,13 @@ Next session, in order (stop for confirmation after each):
 2. ~~Alarm sound~~ done 2026-10-27: `ALERT_WAKES_DISPLAY` (an alert wakes a sleeping display, as stock);
    tone OK from display sleep; acknowledge = Left held 1 s.
 3. ~~Off-state current~~ done 2026-10-27: 3–8 µA off; ≈ 40 mA on (display on), ≤ 365 mA peak in an alarm.
-4. ~~Settings across a battery disconnect~~ done 2026-10-27: settings kept. RTC resets (no backup cell) to an
-   invalid 2000-00-00; fix committed, not flashed: `initRTC()` sets 2025-01-01 00:00 UTC if invalid. Flash with
-   step 5, then check: battery out 10 s → clock at 2025-01-01. History survival not yet reported.
-5. Battery voltage: Rad Pro 4.073 V vs meter 4.029 V (+1.1 %); second point (not charging), then
+4. ~~Settings across a battery disconnect~~ done 2026-10-27: settings kept; RTC survives short disconnects
+   (board capacitance); invalid RTC → 2025-01-01 at power-on (fork, flashed, verified with an SWD-written year 02).
+5. **(Moved to last, user 2026-10-27: needs a lower battery.)** Battery voltage: Rad Pro 4.073 V vs meter 4.029 V (+1.1 %); second point (not charging), then
    `PWR_BAT_SCALE_FACTOR` (divider 0.5438 → ≈ 0.5497).
 6. GM: "UT334A" preset (68.27 CPM per µSv/h) vs stock at background; reference above 0.8 µSv/h if possible.
-7. Serial: FTDI on PA13/PA14 (1 kΩ into PA13, no VCC), USB charger in, 115200 8N1, `GET deviceId`; then CH340.
-   Option: HC-05 on UART5 (PD0/PD1).
+7. ~~Serial~~ done 2026-10-27: **UART5 on PD0/PD1 (QFN 30/31)**, FTDI 3.3 V (TX → 1 kΩ → QFN 30), 115200 8N1,
+   USB charger in; `GET deviceId` etc. OK. Option: HC-05 would now need another UART (UART0 on PA13/PA14).
 8. Optional: faster drawing only if a screen is slow.
 9. Stock features still missing (from `analysis/ghidra/strings.txt`, see notes 2026-10-27): auto shutdown after
    N hours, µGy unit label, Schedule (start delay + timed measurement), on-screen Records (10 sessions),

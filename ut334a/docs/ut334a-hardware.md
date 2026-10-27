@@ -63,8 +63,8 @@ QFN-32 numbering from datasheet fig. 2-4 (pin 1 = PD8, counter-clockwise); pads 
 | 27 | VSS | ground | – | – | – | [DS] |
 | 28 | VDD | 3.0 V supply (SWD pad 4 measured 3.0 V) | – | – | – | [B] |
 | 29 | PD11 | **Right key** (firmware flag 0x20000E2A), bench-confirmed | in | pull-up | low | [S 0x2484], [B] |
-| 30 | PD0 | output, driven low; never used afterwards | out PP | – | – | [S 0x6BBA] |
-| 31 | PD1 | output, driven low; never used afterwards | out PP | – | – | [S 0x6BBA] |
+| 30 | PD0 | output, driven low; never used afterwards. **Port: UART5_RX** (serial wire soldered here 2026-10-27) | out PP | – | – | [S 0x6BBA] |
+| 31 | PD1 | output, driven low; never used afterwards. **Port: UART5_TX** (serial wire soldered here 2026-10-27) | out PP | – | – | [S 0x6BBA] |
 | 32 | PD7 | SWCLK. **Stock FW parks it: output, driven low** | out PP | – | – | [S 0x6BBA], SWD pad 3 [B] |
 
 Notes:

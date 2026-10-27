@@ -499,3 +499,37 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   menu's lowest year) when month or day is 0 or the year is below 25. Emulator (RTC reads 0): one write at
   power-on, BCD 25-01-01, weekday 3 (Wednesday). Signed image ed14484d…, +60 B.
 - User: batch it (no flash now); goes with the battery calibration (step 5) in the next flash.
+
+## 2026-10-27: serial moved to UART5 (PD0/PD1), not flashed
+- User soldered the serial wires to **QFN 30/31 = PD0/PD1** (PA13/PA14 not reachable). Datasheet pin table:
+  PD0 = UART5_RX, PD1 = UART5_TX (their only digital function, so DFS = 0, assumed; the bench test confirms).
+- Fork: `USART_*` in ut334a.h → UART5, PD0/PD1, UART5_IRQn, `USART_PCE_Msk` (PCLKCR3 bit 13). UART5 has no
+  kernel clock select (APBCLK only), so the OPCCR1 UART0CKE/CKS lines were dropped. Baud, 8N1, IRQ code unchanged.
+- `fw_emu.py`: the UART model follows the UART with its own IRQ handler (UART5 now, UART0 in older builds).
+  Emulator, image 15eec4ab… (includes the RTC fix): USB from boot, `GET deviceId` → `OK UNI-T UT334A;Rad Pro
+  3.1.2test2/en;060808091b04ff0a0066003e`, `GET tubeSensitivity` → `OK 68.270`; PCLKCR3 0x2001, GPIOD FCR PD0/PD1
+  = 10 (digital function), DFS 0.
+- Bench wiring: FTDI TX → 1 kΩ → QFN 30 (PD0, RX); FTDI RX ← QFN 31 (PD1, TX); GND; FTDI VCC unconnected,
+  3.3 V logic; USB charger in (comm opens on USB power); 115200 8N1.
+- Flashed after "erase it" (SWD first failed: no connection within 180 s; user re-seated, dry run clean): image 15eec4ab… (UART5 + RTC fix), 12306 words, VERIFY OK. Settings reset by the erase.
+- Bench serial (FTDI COM7, 115200 8N1, USB charger in): first try echoed every command back = QFN 30/31 shorted
+  (user fixed it); then no reply until the user **swapped the FTDI TX/RX wires**; then works:
+  `GET deviceId` → `OK UNI-T UT334A;Rad Pro 3.1.2test2/en;060808091b04ff0a0066003e`, `GET tubeSensitivity` →
+  `OK 68.270`, `GET deviceBatteryVoltage` → `OK 4.238` (charging), `GET tubeRate` → `OK 8.508` cpm,
+  `GET datalog` works. UART5 on PD0/PD1 with DFS = 0 confirmed.
+- RTC after the battery disconnect (continuity check): `GET deviceTime` = 1030885128 = **2002-09-01 12:58 UTC**,
+  first datalog entry after power-on 2002-09-01 12:56:46; older entries 2005-05-08. So the RTC came back with a
+  BCD-valid but wrong date (year 02), and the new `initRTC()` check (year < 25 → 2025-01-01) did **not** take
+  effect at power-on, although `SET deviceTime` over serial works (set 1793130942 = 2026-10-27 19:55:42 UTC,
+  read back, counting). Open: was the RTC write at power-on ignored (32 kHz crystal not yet running after POR?),
+  or not reached? To check: battery out 10 s, in, SWD read of RTC_BCD* before power-on, then power on, read again.
+- SWD (read-only, firmware running) after battery out 10 s with FTDI attached, unit left off: RTC BCD 2026-10-27
+  20:06 (kept, still counting), `currentTick` 9.4 s → the MCU **rebooted** but the RTC kept its time. Repeated with
+  **everything disconnected** (FTDI, USB, battery): RTC still 2026-10-27 20:10, tick 5.7 s (fresh boot). So the
+  FTDI back-power idea is wrong: the board's own capacitance holds VDD high enough for the RTC (µA in DeepSleep)
+  through a short disconnect while the MCU resets. The first "00:24" (old firmware) and the "2002-09-01" are
+  then a never-valid RTC and a brown-out-corrupted RTC; why the year-02 case was not fixed at power-on is open.
+- RTC fix verified on hardware: SWD write of BCDYEAR = 0x02 (WER key 0xACACACAC, RTC register only), unit
+  off/on → RTC 2025-01-01 00:00:10, weekday 3. (Note: the check runs only at power-on; a date scrambled while the
+  unit stays on is not corrected, which may explain the 2002 case.) Clock then set over SWD to UTC
+  2026-10-27 20:15:34; time zone setting is UTC after the erase.

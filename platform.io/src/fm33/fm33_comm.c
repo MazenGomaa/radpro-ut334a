@@ -6,9 +6,10 @@
  *
  * License: MIT
  *
- * Serial port on UART0 (PA13 RX, PA14 TX: DFS = 0), 115200 8N1 as the other Rad Pro serial devices. UART0
- * runs from APBCLK (UART0CKS = 00): baud = APBCLK / (SPBRG + 1). The UT334A has no USB data connection: an
- * external USB-serial adapter connects here. Rad Pro opens the port while USB power is present.
+ * Serial port on UART5 (PD0 RX, PD1 TX = QFN 30/31: their only digital function, DFS = 0), 115200 8N1 as the
+ * other Rad Pro serial devices. UART5 runs from APBCLK (no kernel clock select): baud = APBCLK / (BGR + 1).
+ * The UT334A has no USB data connection: an external USB-serial adapter connects here. Rad Pro opens the port
+ * while USB power is present.
  */
 
 #if defined(FM33)
@@ -29,10 +30,7 @@ void openComm(void)
         return;
 
     // RCC
-    set_bits(RCC->PCLKCR3, RCC_PCLKCR3_UART0_PCE_Msk);
-    modify_bits(RCC->OPCCR1,
-                RCC_OPCCR1_UART0CKE_Msk | RCC_OPCCR1_UART0CKS_Msk,
-                RCC_OPCCR1_UART0CKE_Msk);
+    set_bits(RCC->PCLKCR3, USART_PCE_Msk);
 
     // GPIO: RX pulled up, so an unconnected adapter reads as idle
     gpio_setup_af_dfs(USART_RX_PORT, USART_RX_PIN, GPIO_OUTPUTTYPE_PUSHPULL, GPIO_PULL_PULLUP, false);
@@ -66,8 +64,7 @@ void closeComm(void)
     gpio_setup_analog(USART_TX_PORT, USART_TX_PIN);
 
     // RCC
-    clear_bits(RCC->OPCCR1, RCC_OPCCR1_UART0CKE_Msk);
-    clear_bits(RCC->PCLKCR3, RCC_PCLKCR3_UART0_PCE_Msk);
+    clear_bits(RCC->PCLKCR3, USART_PCE_Msk);
 
     clearComm(false);
 }

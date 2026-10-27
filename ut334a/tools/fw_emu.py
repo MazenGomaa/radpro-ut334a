@@ -6,8 +6,8 @@ Usage: fw_emu.py <workspace> <firmware.bin> <nm-output.txt> <max_ticks> <key_mas
   (as the RAM holds it, and as the panel shows it with MADCTL/INVON applied).
   key_mask: GPIO DIN bits forced low, 16 bits per port from PA (e.g. 0x400 = PA10/OK held).
   EMU_USB=on[:off[:on...]]: USB powered (PA9 high) from tick on, unplugged at off, and so on. EMU_BAT=tick:raw: IN9 reads raw from that tick.
-  EMU_UART_RX=tick:text: UART0 receives text from that tick ('|' = newline, several commands allowed);
-  UART0 TX is printed at the end. After each tick the UART0 IRQ runs while TXBE_IE is set, then once for
+  EMU_UART_RX=tick:text: the serial UART receives text from that tick ('|' = newline, several commands allowed);
+  its TX is printed at the end (UART5, or UART0 in older builds: the one with its own IRQ handler). After each tick the IRQ runs while TXBE_IE is set, then once for
   the next received byte (one byte per tick). After each newline it waits for the whole reply (CR LF).
   EMU_DUMP=sym[+offset],...: print 32-bit RAM values at the end (also as float).
   EMU_POKE=tick:sym[+offset]:mask:value,...: at that tick, set the masked bits of a 32-bit RAM word.
@@ -49,6 +49,9 @@ syms = {}
 for l in open(elf_syms):
     p = l.split()
     if len(p) == 3: syms[p[2]] = int(p[0], 16)
+# Serial UART: the one whose IRQ handler is not the default handler (UART5 since 2026-10-27, UART0 before)
+UART_IRQ = 'UART5_IRQHandler' if syms.get('UART5_IRQHandler') != syms.get('Default_Handler') else 'UART0_IRQHandler'
+UART_BASE = 0x4001A400 if UART_IRQ.startswith('UART5') else 0x40011C00
 img = open(binpath, 'rb').read()
 uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB | UC_MODE_MCLASS)
 uc.mem_map(0, 0x40000); uc.mem_write(0, img)
@@ -87,7 +90,7 @@ spi_ticks = []
 gpiob = {'do': 0}
 def wr(u, acc, addr, size, val, ud):
     if addr == 0x40001018: fls_key(u, val & 0xFFFFFFFF)
-    if addr == 0x40011C14:   # UART0_TXBUF
+    if addr == UART_BASE + 0x14:   # UARTx_TXBUF
         uart['tx'].append(val & 0xFF); uart['tx_ticks'].append(state['ticks']); return
     if addr == 0x40018C14:
         spi.append(((gpiob['do'] >> 3) & 1, (gpiob['do'] >> 8) & 1, val & 0xFF)); spi_ticks.append(state['ticks']); return
@@ -105,9 +108,9 @@ def rd(u, acc, addr, size, val, ud):
         if state.get('erase') is not None:
             u.mem_write(state['erase'], bytes([0xFF]) * 0x200); log.append((state['ticks'], f"ERASE page 0x{state['erase']:05X}", 0)); state['erase'] = None
         u.mem_write(addr, struct.pack('<I', 0x3))
-    if addr == 0x40011C08:   # UART0_ISR: TXBE + TXSE always, RXBF while a byte waits
+    if addr == UART_BASE + 0x08:   # UARTx_ISR: TXBE + TXSE always, RXBF while a byte waits
         u.mem_write(addr, struct.pack('<I', 0x3 | (0x100 if uart['rxbf'] else 0)))
-    if addr == 0x40011C10:   # UART0_RXBUF
+    if addr == UART_BASE + 0x10:   # UARTx_RXBUF
         u.mem_write(addr, struct.pack('<I', uart['byte'])); uart['rxbf'] = False
     if addr == 0x40018C10:   # SPI1_ISR: TXBE, not busy
         u.mem_write(addr, struct.pack('<I', 0x2))
@@ -158,10 +161,10 @@ while True:
         if pulse_period and state['ticks'] % pulse_period == 0 and 'COMPx_IRQHandler' in syms:
             uc.reg_write(UC_ARM_REG_SP, 0x20007F00); uc.reg_write(UC_ARM_REG_LR, RET | 1)
             uc.emu_start(syms['COMPx_IRQHandler'] | 1, RET, count=200000)
-        if 'UART0_IRQHandler' in syms:
+        if UART_IRQ in syms:
             rx_done = False   # one received byte per tick; a pending transmission goes first
             for _ in range(256):
-                ier = struct.unpack('<I', uc.mem_read(0x40011C04, 4))[0]
+                ier = struct.unpack('<I', uc.mem_read(UART_BASE + 0x04, 4))[0]
                 if ier & 0x2:
                     pass
                 elif uart['await_from'] is not None:
@@ -176,7 +179,7 @@ while True:
                 else:
                     break
                 uc.reg_write(UC_ARM_REG_SP, 0x20007F00); uc.reg_write(UC_ARM_REG_LR, RET | 1)
-                uc.emu_start(syms['UART0_IRQHandler'] | 1, RET, count=200000)
+                uc.emu_start(syms[UART_IRQ] | 1, RET, count=200000)
         for r, v in zip(REGS, ctx): uc.reg_write(r, v)
         state['ticks'] += 1; pc = state['pc']
         for pk in pokes:
@@ -252,7 +255,7 @@ if screen_png:
         ImageOps.invert(img).save(screen_png.replace('.png', '_panel_inverted.png'))
     print(f"saved {screen_png}")
 if uart['tx']:
-    print(f"UART0 TX (ticks {uart['tx_ticks'][0]}..{uart['tx_ticks'][-1]}): {bytes(uart['tx'])!r}")
+    print(f"{UART_IRQ[:5]} TX (ticks {uart['tx_ticks'][0]}..{uart['tx_ticks'][-1]}): {bytes(uart['tx'])!r}")
 for name in filter(None, os.environ.get('EMU_DUMP', '').split(',')):   # EMU_DUMP=sym[+offset],...: 32-bit values
     sym, _, off = name.partition('+')
     addr = syms[sym] + int(off or '0', 0)
