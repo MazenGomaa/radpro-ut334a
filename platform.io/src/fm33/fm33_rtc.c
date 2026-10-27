@@ -27,11 +27,6 @@ static uint32_t decodeBCD(uint32_t value)
     return 10 * ((value >> 4) & 0xf) + (value & 0xf);
 }
 
-void initRTC(void)
-{
-    rcc_enable_rtc();
-}
-
 bool setDeviceTime(uint32_t value)
 {
     RTCDateTime dateTime;
@@ -48,6 +43,21 @@ bool setDeviceTime(uint32_t value)
     RTC->WER = 0;
 
     return true;
+}
+
+void initRTC(void)
+{
+    rcc_enable_rtc();
+
+    // A battery disconnect resets the RTC to 00-00-00 (no valid date): start from
+    // RTC_YEAR_MIN-01-01 00:00 UTC, as the stock firmware writes a default date
+    if ((RTC->BCDMONTH == 0) ||
+        (RTC->BCDDAY == 0) ||
+        (decodeBCD(RTC->BCDYEAR) < (RTC_YEAR_MIN - 2000)))
+    {
+        RTCDateTime dateTime = {RTC_YEAR_MIN, 1, 1, 0, 0, 0};
+        setDeviceTime(getTimeFromDateTime(&dateTime));
+    }
 }
 
 static void readRTC(uint32_t *time, uint32_t *date)

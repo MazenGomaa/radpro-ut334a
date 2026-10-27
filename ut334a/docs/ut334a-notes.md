@@ -482,3 +482,20 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   Works. A short key press does not acknowledge (Rad Pro: only Left held 1 s = EVENT_KEY_RESET, which while an
   alert is pending only clears alertPending); the hold works. Stock acknowledgement not remembered; user keeps
   the Rad Pro behaviour. Alarm step closed.
+
+## 2026-10-27: battery current (fork 383dc38, meter in series with battery +)
+- Off (DeepSleep, BOR off): **3–8 µA** (the higher values = the 1 s RTC wake-ups). Close to the datasheet ≈ 2 µA;
+  no leak path while off. Step closed.
+- On, idle (display on): ≈ 40 mA. During an alarm: up to ≈ 365 mA peak (8002A driving the speaker with the
+  full-duty square wave at the selected alert volume, plus backlight); bursts of 250 ms per second, so the average
+  is far lower. Display-asleep current not measured yet.
+
+## 2026-10-27: settings and RTC across a battery disconnect
+- Bench (user): theme (Night) kept after power-off + 10 s battery disconnect → settings in flash survive.
+- RTC: started from "00:24" after the disconnect. No backup cell: the FM33 RTC BCD registers reset to 0 (SVD reset
+  values), i.e. 2000-00-00 00:00:00, an invalid date (month 0, day 0) that the port never corrected (stock writes a
+  default date, `0x8330`).
+- Fork fix (not committed/flashed): `initRTC()` (every power-on) sets 2025-01-01 00:00 UTC (RTC_YEAR_MIN, the
+  menu's lowest year) when month or day is 0 or the year is below 25. Emulator (RTC reads 0): one write at
+  power-on, BCD 25-01-01, weekday 3 (Wednesday). Signed image ed14484d…, +60 B.
+- User: batch it (no flash now); goes with the battery calibration (step 5) in the next flash.

@@ -6,7 +6,7 @@ background, 0.08–0.09 µSv/h), pulse click + LED, alert LED, all screens, brig
 flash saves, power-off fully dark, display sleep, charging icon with USB while on, charging LED held while off
 (off on unplug; off with a full battery), USB auto power-on on plug-in. Log: `docs/ut334a-notes.md`.
 
-**On the unit now:** fork with `ALERT_WAKES_DISPLAY` on top of `91b25e6` (flashed 2026-10-27, signed image SHA-256
+**On the unit now:** fork `383dc38` (`ALERT_WAKES_DISPLAY` on top of `91b25e6`) (flashed 2026-10-27, signed image SHA-256
 b4674e27…, VERIFY OK; settings were reset by the full erase): the off-state fix (keys while off after 5 s, USB
 re-plug charging screen), the stock-style **Overview** screen (rate large + Average + Cumulative rows; OK cycles
 Average/Cumulative → Max + secondary-unit rate → bar), Up/Down = Overview ↔ History, Reset clears
@@ -31,9 +31,10 @@ Next session, in order (stop for confirmation after each):
 1. ~~Flash the current fork~~ done 2026-10-27 (`91b25e6`, all bench checks OK).
 2. ~~Alarm sound~~ done 2026-10-27: `ALERT_WAKES_DISPLAY` (an alert wakes a sleeping display, as stock);
    tone OK from display sleep; acknowledge = Left held 1 s.
-3. **Off-state current** with a meter in series with the battery (µA range expected; datasheet ≈ 2 µA DeepSleep
-   with BOR off). If high: PC8/PA8 as stock, backlight supply path, the 1 s RTC wake-ups.
-4. Settings + datalog survive a battery disconnect; RTC across power-off / disconnect.
+3. ~~Off-state current~~ done 2026-10-27: 3–8 µA off; ≈ 40 mA on (display on), ≤ 365 mA peak in an alarm.
+4. ~~Settings across a battery disconnect~~ done 2026-10-27: settings kept. RTC resets (no backup cell) to an
+   invalid 2000-00-00; fix committed, not flashed: `initRTC()` sets 2025-01-01 00:00 UTC if invalid. Flash with
+   step 5, then check: battery out 10 s → clock at 2025-01-01. History survival not yet reported.
 5. Battery voltage: Rad Pro 4.073 V vs meter 4.029 V (+1.1 %); second point (not charging), then
    `PWR_BAT_SCALE_FACTOR` (divider 0.5438 → ≈ 0.5497).
 6. GM: "UT334A" preset (68.27 CPM per µSv/h) vs stock at background; reference above 0.8 µSv/h if possible.
