@@ -561,3 +561,10 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   512 pages erased, 12455 words, VERIFY OK, `--no-nrst`, battery power. Settings reset by the erase.
 - Bench (user): boots, Gray unit works, "everything works fine". Auto shutdown kept as flashed (default Off), no
   bench test (user choice). Step 9 closed (Schedule, Records, ICRP page not wanted). Remaining: step 5.
+
+## 2026-10-28: end of fifth session
+- Docs: fork README status (2026-10-28), port README shared-code table (overview, 3 min history, alert wake, Gray,
+  auto shutdown, strings/fonts), install guide and hardware map serial → UART5 PD0/PD1 (were still UART0).
+- Line endings: the step 9 edit had turned 5 CRLF sources LF (whole-file diffs vs upstream); restored to CRLF
+  (content unchanged, image unaffected).
+- User: day-long test of `65d937a` next, issues reported in a new session; then step 5.

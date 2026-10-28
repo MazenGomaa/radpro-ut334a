@@ -72,7 +72,7 @@ Notes:
   PC9/PC10 are SPI2 pins, so they may go to test pads or nothing. Worth a continuity check; a free UART on
   PA13/PA14 would be the natural Rad Pro comm port (USB is not available on the "N" part).
 - UART-capable free pins (datasheet pin table and GPIOx_DFS): **PA13/PA14 = UART0 RX/TX** (DFS = 0; DFS = 1 =
-  LPUART0) and **PD0/PD1 = UART5 RX/TX**. The port uses UART0 for its serial link (115200 8N1). PC9/PC10 have no
+  LPUART0) and **PD0/PD1 = UART5 RX/TX**. The port uses UART5 (PD0/PD1, QFN 30/31) for its serial link (115200 8N1; UART0 until fork `ad932fc`). PC9/PC10 have no
   UART function (SPI2); with PD0/PD1 they are candidates for extra outputs (e.g. a Bluetooth module supply switch).
 - Port-pin numbers in hex in the firmware: GPIO helper `FL_GPIO_Init` at 0x4128, struct {pins, mode(0 in,1 out,2 AF,3 analog), od, pull, ...}.
 - In power-off (0xA884) the firmware also switches PC8, PB9, PB11, PA8 to open-drain outputs and drives

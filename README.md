@@ -31,22 +31,26 @@ On the **UNI-T UT334A**, Rad Pro lets you:
 
 ### UT334A port status
 
-Tested on one unit (2026-10-26):
+Tested on one unit (last update 2026-10-28, fork commit `65d937a`):
 
-* Working: boot and power on/off, keys, GM counting, pulse click and LED, alert LED, all screens, brightness
-  levels, display sleep, sound and volume settings, settings saved to flash, battery display, charging icon,
-  charging LED that stays on until full, USB auto power-on, charging screen when USB is plugged in while off.
-* Fixed, not yet tested on the unit: keys and USB re-plug while off once the unit has gone back to sleep.
-* Added, not yet tested on the unit: an **overview screen** like the stock firmware's (instantaneous rate, average
-  rate and cumulative dose together; OK switches its lower part to maximum and secondary-unit rate, or the bar),
-  which with History forms the screen cycle; a **3 minute history** view (one point per second).
-* Added, not yet tested on the unit: **serial link** for data export and streaming through an added 3.3 V
-  USB-serial adapter on the MCU's UART0 (the UT334A has no USB data connection; see the installation guide);
-  stock calibration as the "UT334A" tube preset; lower power use while off; low-battery power-off as stock
-  (below 3.35 V for 100 s).
-* Known issue: the alarm tone is not heard (pulse clicks pause during each alarm flash).
-* Not yet verified: battery reading accuracy (reads about 1 % high), clock and saved data across a battery
-  disconnect, power consumption while off, counts and calibration against the stock firmware.
+* Working: boot and power on/off, keys, GM counting, pulse click and LED, alert LED and alarm tone (also from
+  display sleep; an alert wakes the display as on the stock firmware), all screens, brightness levels, display
+  sleep, sound and volume settings, settings saved to flash, battery display, charging icon, charging LED that
+  stays on until full, USB auto power-on, charging screen when USB is plugged in while off, keys and USB re-plug
+  while off.
+* Stock-style screens: an **overview screen** (instantaneous rate, average rate and cumulative dose together; OK
+  switches its lower part to maximum and secondary-unit rate, or the bar), which with History forms the screen
+  cycle (Up/Down); a **3 minute history** view.
+* Stock features: **µGy units** (Dose units → Gray: the Sv values with a Gy label, as the stock firmware does);
+  **auto shutdown** after 1–24 h on battery (Settings → Power, default off; checked in the emulator only).
+* **Serial link** for data export and streaming through an added 3.3 V USB-serial adapter on the MCU's UART5
+  (PD0/PD1; the UT334A has no USB data connection; see the installation guide). Tested with an FTDI adapter.
+* Stock calibration as the "UT334A" tube preset (68.27 CPM per µSv/h, the stock low-range factor); low-battery
+  power-off as stock (below 3.35 V for 100 s). Off-state current 3–8 µA. Settings survive a battery
+  disconnect; after a long one the clock restarts at 2025-01-01.
+* Not yet verified: battery reading accuracy (reads about 1 % high; correction pending), calibration against a
+  reference source (above 0.8 µSv/h the stock firmware reads about 1.5× higher than the single preset factor;
+  which is closer to the truth is unknown).
 
 Upstream Rad Pro devices export and stream over USB; the UT334A needs the serial adapter for this.
 

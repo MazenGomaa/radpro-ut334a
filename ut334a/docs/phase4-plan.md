@@ -30,6 +30,8 @@ released at tick 1300).
 `tools/fm33_flash.sh flash <signed.bin> --erase-it --no-nrst` (~6 min). If it reports the controller key-locked,
 nothing was erased: battery off 5 s, retry.
 
+**Next:** user day-long test of `65d937a` (2026-10-28), issues reported in a new session; then step 5.
+
 Remaining work (user 2026-10-27: after these two the project is closed). Stop for confirmation after each:
 1. **Step 9: done 2026-10-28** (auto shutdown + Gray unit flashed, `65d937a`; Schedule, Records, ICRP page not
    wanted by the user). Original note (from `analysis/ghidra/strings.txt`, see notes 2026-10-27): quick

@@ -122,14 +122,15 @@ The UT334A's USB-C socket only charges. For Rad Pro's PC link (GeigerLog, data l
 
 | Adapter | UT334A |
 |---|---|
-| TX | **1 kΩ** in series → PA13 (QFN pin 3, UART0 RX) |
-| RX | PA14 (QFN pin 4, UART0 TX) |
+| TX | **1 kΩ** in series → PD0 (QFN pin 30, UART5 RX) |
+| RX | PD1 (QFN pin 31, UART5 TX) |
 | GND | GND |
 | VCC | **leave unconnected** |
 
 The MCU runs at 3.0 V: use 3.3 V logic (never 5 V) and keep the 1 kΩ resistor. Settings: 115200 baud, 8N1.
 Rad Pro opens the port only while USB power is present, so keep the USB charger plugged in. Test with a terminal: `GET deviceId` + Enter answers `OK UNI-T UT334A;...`.
-This part is new and **not yet tested on hardware**.
+Tested 2026-10-27 with an FTDI adapter (`GET deviceId`, `GET tubeSensitivity`, `GET datalog`). Builds before
+fork commit `ad932fc` used UART0 (PA13/PA14, no tracks on the board) instead.
 
 ## Restoring the stock firmware
 `tools/fm33_flash.sh flash <your dump>.bin --erase-it --no-nrst` (≈ 23 min; Rad Pro leaves SWD free, so no NRST
