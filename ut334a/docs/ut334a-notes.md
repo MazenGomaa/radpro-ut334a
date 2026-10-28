@@ -557,3 +557,7 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   emulator with OK held (`key_mask 0x400`, release 1300), else it powers off at tick ≈ 5000.
 - Emulator: Overview shows µGy/h, Average µGy/h, Cumulative µGy. Auto shutdown 1 h with the counter poked to 3590 s
   at tick 4000: DeepSleep at tick 14370 (≈ 10 s). With USB in, or setting Off: no shutdown in 20 s.
+- Flashed 2026-10-28: fork `65d937a` (en, image 49d36b88…), dry run OK (UID 060808091B04FF0A0066003E, unprotected),
+  512 pages erased, 12455 words, VERIFY OK, `--no-nrst`, battery power. Settings reset by the erase.
+- Bench (user): boots, Gray unit works, "everything works fine". Auto shutdown kept as flashed (default Off), no
+  bench test (user choice). Step 9 closed (Schedule, Records, ICRP page not wanted). Remaining: step 5.

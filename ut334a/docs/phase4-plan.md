@@ -6,7 +6,7 @@ background, 0.08–0.09 µSv/h), pulse click + LED, alert LED, all screens, brig
 flash saves, power-off fully dark, display sleep, charging icon with USB while on, charging LED held while off
 (off on unplug; off with a full battery), USB auto power-on on plug-in. Log: `docs/ut334a-notes.md`.
 
-**On the unit now:** fork `ad932fc` (flashed 2026-10-27, image 15eec4ab…: serial on UART5 PD0/PD1, RTC invalid-date fix,
+**On the unit now:** fork `65d937a` (flashed 2026-10-28, image 49d36b88…: auto shutdown + Gray unit on top of `ad932fc`, image 15eec4ab…: serial on UART5 PD0/PD1, RTC invalid-date fix,
 `ALERT_WAKES_DISPLAY` on top of `91b25e6`; earlier image
 b4674e27…; settings were reset by the full erase): the off-state fix (keys while off after 5 s, USB
 re-plug charging screen), the stock-style **Overview** screen (rate large + Average + Cumulative rows; OK cycles
@@ -31,8 +31,8 @@ released at tick 1300).
 nothing was erased: battery off 5 s, retry.
 
 Remaining work (user 2026-10-27: after these two the project is closed). Stop for confirmation after each:
-1. **Step 9, stock features still missing** (part 1 done in code + emulator 2026-10-28, not flashed: auto shutdown,
-   µGy; see notes) (from `analysis/ghidra/strings.txt`, see notes 2026-10-27): quick
+1. **Step 9: done 2026-10-28** (auto shutdown + Gray unit flashed, `65d937a`; Schedule, Records, ICRP page not
+   wanted by the user). Original note (from `analysis/ghidra/strings.txt`, see notes 2026-10-27): quick
    ones first, **auto shutdown after N hours** and the **µGy unit label**; then, if the user wants them,
    Schedule (start delay + timed measurement), on-screen Records (10 sessions), ICRP info page. Code + emulator,
    then one flash for all of it (settings reset by the erase: set theme/alarm/time zone again; clock can be set
