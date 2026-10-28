@@ -27,8 +27,11 @@
 #define STRING_MEGA "M"
 #define STRING_GIGA "G"
 #define STRING_SIEVERT "Sievert"
+#define STRING_GRAY "Gray"
 #define STRING_SV "Sv"
 #define STRING_SVH "Sv/h"
+#define STRING_GY "Gy"
+#define STRING_GYH "Gy/h"
 #define STRING_REM "rem"
 #define STRING_REMH "rem/h"
 #define STRING_CPM "cpm"
@@ -52,6 +55,9 @@
 #define STRING_12_HOURS "12 tuntia"
 #define STRING_6_HOURS "6 tuntia"
 #define STRING_3_HOURS "3 tuntia"
+#define STRING_8_HOURS "8 tuntia"
+#define STRING_4_HOURS "4 tuntia"
+#define STRING_2_HOURS "2 tuntia"
 #define STRING_1_HOUR "1 tunti"
 #define STRING_30_MINUTES "30 minuuttia"
 #define STRING_10_MINUTES "10 minuuttia"
@@ -273,6 +279,7 @@
 // Power menu items
 #define STRING_BATTERY "Akku"
 #define STRING_USB_AUTOPOWER_ON "USB automaattikäynnistys"
+#define STRING_AUTO_SHUTDOWN "Automaattinen sammutus"
 
 // Battery type menu items
 #define STRING_NI_MH "Ni-MH"

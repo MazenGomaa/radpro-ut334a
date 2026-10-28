@@ -27,8 +27,11 @@
 #define STRING_MEGA "M"
 #define STRING_GIGA "G"
 #define STRING_SIEVERT "Sievert"
+#define STRING_GRAY "Gray"
 #define STRING_SV "Sv"
 #define STRING_SVH "Sv/h"
+#define STRING_GY "Gy"
+#define STRING_GYH "Gy/h"
 #define STRING_REM "rem"
 #define STRING_REMH "rem/h"
 #define STRING_CPM "cpm"
@@ -52,6 +55,9 @@
 #define STRING_12_HOURS "12시간"
 #define STRING_6_HOURS "6시간"
 #define STRING_3_HOURS "3시간"
+#define STRING_8_HOURS "8시간"
+#define STRING_4_HOURS "4시간"
+#define STRING_2_HOURS "2시간"
 #define STRING_1_HOUR "1시간"
 #define STRING_30_MINUTES "30분"
 #define STRING_10_MINUTES "10분"
@@ -273,6 +279,7 @@
 // Power menu items
 #define STRING_BATTERY "배터리"
 #define STRING_USB_AUTOPOWER_ON "USB 자동 전원 켜기"
+#define STRING_AUTO_SHUTDOWN "자동 전원 끄기"
 
 // Battery type menu items
 #define STRING_NI_MH "니켈-금속수소"

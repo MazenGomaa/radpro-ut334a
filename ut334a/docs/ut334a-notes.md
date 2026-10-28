@@ -540,3 +540,20 @@ All register values copied from emulating the stock routines (`tools/stock_trace
 - User decisions: step 6 (GM calibration) dropped: only an Am-241 smoke-detector source (no known dose rate),
   no reference meter. Remaining: step 9 (stock features, auto shutdown + µGy first), then step 5 (battery
   calibration) as the final step; after that the project is closed. Next session starts with step 9.
+
+## 2026-10-28: step 9 part 1, auto shutdown + µGy (code + emulator, not flashed, not committed)
+- User choices: auto shutdown counts from power-on; options Off/1/2/4/8/12/24 h, default Off.
+- `DOSE_UNITS_GRAY` (UT334A): unit "Gray" (Gy/h, Gy) in Dose units and Secondary units, same values as Sv (stock
+  only swaps the label: its ICRP strings give 0.52 for uSv/h and uGy/h). `doseUnits`/`secondaryDoseUnits` widened
+  to 3 bits (validated on load); settings size unchanged.
+- `AUTO_SHUTDOWN` (UT334A): Settings → Power → Auto shutdown. Counts heartbeats on battery since power-on; restarts
+  on USB unplug and on a setting change; held while an alarm is active; then `powerOff()` (settings saved).
+- Strings in all 30 languages; `build-fonts.py` adds STRING_GY* to the medium (unit) font set; fonts regenerated
+  (74 files, other devices' fonts also gain the glyphs). Glyph check: all new strings covered in all 30 UT334A
+  languages. `tools/platformio.ini.base` synced (it lacked MEASUREMENT_OVERVIEW, HISTORY_3_MINUTES,
+  ALERT_WAKES_DISPLAY). Builds: all 30 UT334A languages, GC-03 en, FS2011 en/zh_CN. en: 49.6 KB flash, 12.2 KB RAM.
+- New emulator pokes: primary unit `settings:0xe000:<v>` (cpm 0x4000, Gy 0x8000; secondary at 0x70000);
+  auto shutdown `settings+12:0x38000000` (1 h = 0x08000000); counter `power+16` (enums are 1 byte). Power on in the
+  emulator with OK held (`key_mask 0x400`, release 1300), else it powers off at tick ≈ 5000.
+- Emulator: Overview shows µGy/h, Average µGy/h, Cumulative µGy. Auto shutdown 1 h with the counter poked to 3590 s
+  at tick 4000: DeepSleep at tick 14370 (≈ 10 s). With USB in, or setting Off: no shutdown in 20 s.

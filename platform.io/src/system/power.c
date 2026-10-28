@@ -54,6 +54,10 @@ static struct
     float batteryVoltage;
     uint8_t batteryLevel;
     bool previousUSBPowered;
+
+#if defined(AUTO_SHUTDOWN)
+    uint32_t autoShutdownSeconds;
+#endif
 } power;
 
 static void onPowerOffViewEvent(ViewEvent event);
@@ -65,6 +69,9 @@ static const Menu powerMenu;
 #if defined(BATTERY_REMOVABLE)
 static const Menu powerBatteryTypeMenu;
 #endif
+#if defined(AUTO_SHUTDOWN)
+static const Menu powerAutoShutdownMenu;
+#endif
 
 static void resetPower(void)
 {
@@ -73,6 +80,11 @@ static void resetPower(void)
 #endif
 #if defined(BATTERY_REMOVABLE)
     selectMenuItem(&powerBatteryTypeMenu, settings.powerBatteryType);
+#endif
+#if defined(AUTO_SHUTDOWN)
+    selectMenuItem(&powerAutoShutdownMenu, settings.powerAutoShutdown);
+
+    power.autoShutdownSeconds = 0;
 #endif
 }
 
@@ -317,6 +329,39 @@ static const float batteryLow[1] = {
 static uint32_t lowBatterySeconds;
 #endif
 
+#if defined(AUTO_SHUTDOWN)
+static const uint32_t autoShutdownTimes[] = {
+    0,
+    1 * 3600,
+    2 * 3600,
+    4 * 3600,
+    8 * 3600,
+    12 * 3600,
+    24 * 3600,
+};
+
+// Counts the time on battery since power-on (restarts on USB unplug and on a setting change);
+// waits while an alarm is active
+static void updateAutoShutdown(bool usbPowered)
+{
+    if (!power.poweredOn || usbPowered)
+    {
+        power.autoShutdownSeconds = 0;
+
+        return;
+    }
+
+    uint32_t autoShutdownTime = autoShutdownTimes[settings.powerAutoShutdown];
+    if (!autoShutdownTime)
+        return;
+
+    if (power.autoShutdownSeconds < autoShutdownTime)
+        power.autoShutdownSeconds++;
+    else if (getAlertLevel() != ALERTLEVEL_ALARM)
+        powerOff();
+}
+#endif
+
 void updatePowerState(void)
 {
     // Battery level
@@ -356,6 +401,10 @@ void updatePowerState(void)
         if (power.poweredOn && lowBattery)
             powerOffWithBatteryIndicator(true);
     }
+
+#if defined(AUTO_SHUTDOWN)
+    updateAutoShutdown(usbPowered);
+#endif
 
     if (!power.previousUSBPowered && usbPowered)
     {
@@ -423,6 +472,47 @@ static const Menu powerBatteryTypeMenu = {
 
 #endif
 
+// Auto shutdown menu
+
+#if defined(AUTO_SHUTDOWN)
+
+static cstring powerAutoShutdownMenuOptions[] = {
+    STRING_OFF,
+    STRING_1_HOUR,
+    STRING_2_HOURS,
+    STRING_4_HOURS,
+    STRING_8_HOURS,
+    STRING_12_HOURS,
+    STRING_24_HOURS,
+};
+
+static const char *onPowerAutoShutdownMenuGetOption(menu_size_t index, MenuStyle *menuStyle)
+{
+    *menuStyle = (index == settings.powerAutoShutdown);
+
+    return getString(powerAutoShutdownMenuOptions[index]);
+}
+
+static void onPowerAutoShutdownMenuSelect(menu_size_t index)
+{
+    settings.powerAutoShutdown = index;
+
+    power.autoShutdownSeconds = 0;
+}
+
+static MenuState powerAutoShutdownMenuState;
+
+static const Menu powerAutoShutdownMenu = {
+    STRING_AUTO_SHUTDOWN,
+    &powerAutoShutdownMenuState,
+    ARRAY_SIZE(powerAutoShutdownMenuOptions),
+    onPowerAutoShutdownMenuGetOption,
+    onPowerAutoShutdownMenuSelect,
+    showPowerMenu,
+};
+
+#endif
+
 // Power menu
 
 #if defined(POWER_MENU)
@@ -435,6 +525,9 @@ enum
 #if defined(USB_AUTOPOWER_ON)
     POWER_USB_AUTOPOWER_ON,
 #endif
+#if defined(AUTO_SHUTDOWN)
+    POWER_AUTO_SHUTDOWN,
+#endif
 #if defined(DATA_MODE)
     POWER_DATA_MODE,
 #endif
@@ -446,6 +539,9 @@ static cstring powerMenuOptions[] = {
 #endif
 #if defined(USB_AUTOPOWER_ON)
     STRING_USB_AUTOPOWER_ON,
+#endif
+#if defined(AUTO_SHUTDOWN)
+    STRING_AUTO_SHUTDOWN,
 #endif
 #if defined(DATA_MODE)
     STRING_DATAMODE,
@@ -466,6 +562,13 @@ static const char *onPowerMenuGetOption(menu_size_t index, MenuStyle *menuStyle)
 #if defined(USB_AUTOPOWER_ON)
     case POWER_USB_AUTOPOWER_ON:
         *menuStyle = settings.powerUSBAutoPowerOn;
+
+        break;
+#endif
+
+#if defined(AUTO_SHUTDOWN)
+    case POWER_AUTO_SHUTDOWN:
+        *menuStyle = MENUSTYLE_SUBMENU;
 
         break;
 #endif
@@ -495,6 +598,13 @@ static void onPowerMenuSelect(menu_size_t index)
 #if defined(USB_AUTOPOWER_ON)
     case POWER_USB_AUTOPOWER_ON:
         settings.powerUSBAutoPowerOn = !settings.powerUSBAutoPowerOn;
+
+        break;
+#endif
+
+#if defined(AUTO_SHUTDOWN)
+    case POWER_AUTO_SHUTDOWN:
+        showMenu(&powerAutoShutdownMenu);
 
         break;
 #endif

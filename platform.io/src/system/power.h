@@ -15,7 +15,7 @@
 
 #include "../ui/view.h"
 
-#if defined(BATTERY_REMOVABLE) || defined(USB_AUTOPOWER_ON) || defined(DATA_MODE)
+#if defined(BATTERY_REMOVABLE) || defined(USB_AUTOPOWER_ON) || defined(AUTO_SHUTDOWN) || defined(DATA_MODE)
 #define POWER_MENU
 #endif
 

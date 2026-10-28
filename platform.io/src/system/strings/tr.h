@@ -27,8 +27,11 @@
 #define STRING_MEGA "M"
 #define STRING_GIGA "G"
 #define STRING_SIEVERT "Sievert"
+#define STRING_GRAY "Gray"
 #define STRING_SV "Sv"
 #define STRING_SVH "Sv/h"
+#define STRING_GY "Gy"
+#define STRING_GYH "Gy/h"
 #define STRING_REM "rem"
 #define STRING_REMH "rem/h"
 #define STRING_CPM "cpm"
@@ -52,6 +55,9 @@
 #define STRING_12_HOURS "12 saat"
 #define STRING_6_HOURS "6 saat"
 #define STRING_3_HOURS "3 saat"
+#define STRING_8_HOURS "8 saat"
+#define STRING_4_HOURS "4 saat"
+#define STRING_2_HOURS "2 saat"
 #define STRING_1_HOUR "1 saat"
 #define STRING_30_MINUTES "30 dakika"
 #define STRING_10_MINUTES "10 dakika"
@@ -273,6 +279,7 @@
 // Power menu items
 #define STRING_BATTERY "Pil"
 #define STRING_USB_AUTOPOWER_ON "USB otomatik açılış"
+#define STRING_AUTO_SHUTDOWN "Otomatik kapanma"
 
 // Battery type menu items
 #define STRING_NI_MH "Ni-MH"

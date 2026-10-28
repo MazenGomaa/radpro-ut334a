@@ -198,6 +198,7 @@ for language_file in Path("../platform.io/src/system/strings").glob("*.h"):
     ]
 
     font_medium_matches = font_medium_bpp_low_matches.copy() + [
+        "STRING_GY",
         "STRING_VOLT_PER_METER_UNIT",
         "STRING_TESLA_UNIT",
         "STRING_GAUSS_UNIT",

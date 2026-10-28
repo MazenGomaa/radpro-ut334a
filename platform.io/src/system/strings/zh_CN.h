@@ -27,8 +27,11 @@
 #define STRING_MEGA "M"
 #define STRING_GIGA "G"
 #define STRING_SIEVERT "Sievert"
+#define STRING_GRAY "Gray"
 #define STRING_SV "Sv"
 #define STRING_SVH "Sv/h"
+#define STRING_GY "Gy"
+#define STRING_GYH "Gy/h"
 #define STRING_REM "rem"
 #define STRING_REMH "rem/h"
 #define STRING_CPM "cpm"
@@ -52,6 +55,9 @@
 #define STRING_12_HOURS "12小时"
 #define STRING_6_HOURS "6小时"
 #define STRING_3_HOURS "3小时"
+#define STRING_8_HOURS "8小时"
+#define STRING_4_HOURS "4小时"
+#define STRING_2_HOURS "2小时"
 #define STRING_1_HOUR "1小时"
 #define STRING_30_MINUTES "30分钟"
 #define STRING_10_MINUTES "10分钟"
@@ -273,6 +279,7 @@
 // Power menu items
 #define STRING_BATTERY "电池"
 #define STRING_USB_AUTOPOWER_ON "USB自动开机"
+#define STRING_AUTO_SHUTDOWN "自动关机"
 
 // Battery type menu items
 #define STRING_NI_MH "镍氢"

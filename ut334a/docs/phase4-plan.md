@@ -21,7 +21,9 @@ not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scrat
 `EMU_DEEPSLEEP=real EMU_KEY2=7000:10500:0x400 python tools/fw_emu.py . <bin> <nm.txt> 14000 0 0 0 <png>`
 (nm.txt = `arm-none-eabi-nm firmware.elf`; key masks: PA10 OK 0x400, PA15 left 0x8000, PD11 right
 0x0800000000000000; `EMU_USB=on:off:on`; `EMU_POKE=tick:sym+off:mask:value` sets settings bits, e.g. theme
-`settings+12:0x18:0x08` Dusk / `0x10` Night, primary unit `settings:0x6000:0x4000` cpm; 15000 ticks ≈ 5 min).
+`settings+12:0x18:0x08` Dusk / `0x10` Night, primary unit `settings:0xe000:0x4000` cpm / `0x8000` Gy, auto shutdown
+`settings+12:0x38000000` (1 h = 0x08000000), its counter `power+16`; SysTick 1 kHz; power on with key mask 0x400
+released at tick 1300).
 
 **Flashing procedure** (see `docs/swd-access.md`, user version `docs/install-guide.md`): battery power only
 (ST-Link 3.3 V unconnected), `--no-nrst`: `tools/fm33_flash.sh dryrun --no-nrst`, then after "erase it":
@@ -29,7 +31,8 @@ not on PATH), then `python <workspace>/radpro/tools/sign.py` from an empty scrat
 nothing was erased: battery off 5 s, retry.
 
 Remaining work (user 2026-10-27: after these two the project is closed). Stop for confirmation after each:
-1. **Step 9, stock features still missing** (from `analysis/ghidra/strings.txt`, see notes 2026-10-27): quick
+1. **Step 9, stock features still missing** (part 1 done in code + emulator 2026-10-28, not flashed: auto shutdown,
+   µGy; see notes) (from `analysis/ghidra/strings.txt`, see notes 2026-10-27): quick
    ones first, **auto shutdown after N hours** and the **µGy unit label**; then, if the user wants them,
    Schedule (start delay + timed measurement), on-screen Records (10 sessions), ICRP info page. Code + emulator,
    then one flash for all of it (settings reset by the erase: set theme/alarm/time zone again; clock can be set

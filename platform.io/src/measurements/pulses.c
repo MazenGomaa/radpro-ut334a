@@ -66,9 +66,15 @@ const float doseAlerts[] = {
     100E-3F,
 };
 
+#if defined(DOSE_UNITS_GRAY)
+const int8_t doseUnitsMinMetricPrefix[] = {-2, -2, 0, 0, -2};
+
+const int8_t doseUnitsBarMinExponent[] = {-8, -6, 0, -2, -8};
+#else
 const int8_t doseUnitsMinMetricPrefix[] = {-2, -2, 0, 0};
 
 const int8_t doseUnitsBarMinExponent[] = {-8, -6, 0, -2};
+#endif
 
 PulseUnits pulseUnits[] = {
     {{STRING_SVH, (60 * 1E-6F)},
@@ -79,6 +85,11 @@ PulseUnits pulseUnits[] = {
      {STRING_EMPTY, 1}},
     {{STRING_CPS, 1},
      {STRING_EMPTY, 1}},
+#if defined(DOSE_UNITS_GRAY)
+    // Same values as Sv (gamma, as stock: only the label changes)
+    {{STRING_GYH, (60 * 1E-6F)},
+     {STRING_GY, (60 * 1E-6F / 3600)}},
+#endif
 };
 
 static struct
@@ -148,6 +159,10 @@ void updateDoseUnits(void)
     pulseUnits[DOSE_UNITS_SIEVERTS].dose.scale = (60.0F * 1E-6F / 3600.0F) / sensitivity;
     pulseUnits[DOSE_UNITS_REM].rate.scale = (60.0F * 1E-4F) / sensitivity;
     pulseUnits[DOSE_UNITS_REM].dose.scale = (60.0F * 1E-4F / 3600.0F) / sensitivity;
+#if defined(DOSE_UNITS_GRAY)
+    pulseUnits[DOSE_UNITS_GRAYS].rate.scale = pulseUnits[DOSE_UNITS_SIEVERTS].rate.scale;
+    pulseUnits[DOSE_UNITS_GRAYS].dose.scale = pulseUnits[DOSE_UNITS_SIEVERTS].dose.scale;
+#endif
 
     if (sensitivity < PULSE_INDICATION_SENSITIVITY_MAX)
         pulses.indicationFactor = PULSE_INDICATION_FACTOR_UNIT;
@@ -648,6 +663,9 @@ static cstring doseUnitsMenuOptions[] = {
     STRING_REM,
     STRING_CPM,
     STRING_CPS,
+#if defined(DOSE_UNITS_GRAY)
+    STRING_GRAY,
+#endif
 };
 
 static const char *onDoseUnitsMenuGetOption(menu_size_t index, MenuStyle *menuStyle)

@@ -27,8 +27,11 @@
 #define STRING_MEGA "М"
 #define STRING_GIGA "Г"
 #define STRING_SIEVERT "Сиверт"
+#define STRING_GRAY "Грей"
 #define STRING_SV "Св"
 #define STRING_SVH "Св/ч"
+#define STRING_GY "Гр"
+#define STRING_GYH "Гр/ч"
 #define STRING_REM "рем"
 #define STRING_REMH "рем/ч"
 #define STRING_CPM "имп/мин"
@@ -52,6 +55,9 @@
 #define STRING_12_HOURS "12 часа"
 #define STRING_6_HOURS "6 часа"
 #define STRING_3_HOURS "3 часа"
+#define STRING_8_HOURS "8 часа"
+#define STRING_4_HOURS "4 часа"
+#define STRING_2_HOURS "2 часа"
 #define STRING_1_HOUR "1 час"
 #define STRING_30_MINUTES "30 минути"
 #define STRING_10_MINUTES "10 минути"
@@ -273,6 +279,7 @@
 // Power menu items
 #define STRING_BATTERY "Батерия"
 #define STRING_USB_AUTOPOWER_ON "USB автоматично включване"
+#define STRING_AUTO_SHUTDOWN "Автоматично изключване"
 
 // Battery type menu items
 #define STRING_NI_MH "Ni-MH"

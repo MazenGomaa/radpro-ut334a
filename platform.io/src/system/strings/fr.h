@@ -27,8 +27,11 @@
 #define STRING_MEGA "M"
 #define STRING_GIGA "G"
 #define STRING_SIEVERT "Sievert"
+#define STRING_GRAY "Gray"
 #define STRING_SV "Sv"
 #define STRING_SVH "Sv/h"
+#define STRING_GY "Gy"
+#define STRING_GYH "Gy/h"
 #define STRING_REM "rem"
 #define STRING_REMH "rem/h"
 #define STRING_CPM "cpm"
@@ -52,6 +55,9 @@
 #define STRING_12_HOURS "12 heures"
 #define STRING_6_HOURS "6 heures"
 #define STRING_3_HOURS "3 heures"
+#define STRING_8_HOURS "8 heures"
+#define STRING_4_HOURS "4 heures"
+#define STRING_2_HOURS "2 heures"
 #define STRING_1_HOUR "1 heure"
 #define STRING_30_MINUTES "30 minutes"
 #define STRING_10_MINUTES "10 minutes"
@@ -273,6 +279,7 @@
 // Power menu items
 #define STRING_BATTERY "Batterie"
 #define STRING_USB_AUTOPOWER_ON "USB allumage automatique"
+#define STRING_AUTO_SHUTDOWN "Arrêt automatique"
 
 // Battery type menu items
 #define STRING_NI_MH "Ni-MH"

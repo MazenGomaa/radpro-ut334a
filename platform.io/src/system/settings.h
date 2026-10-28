@@ -93,6 +93,9 @@ enum
     DOSE_UNITS_REM,
     DOSE_UNITS_CPM,
     DOSE_UNITS_CPS,
+#if defined(DOSE_UNITS_GRAY)
+    DOSE_UNITS_GRAYS,
+#endif
 
     DOSE_UNITS_NUM,
 };
@@ -313,6 +316,21 @@ enum
     DISPLAY_SLEEP_NUM,
 };
 
+#if defined(AUTO_SHUTDOWN)
+enum
+{
+    POWER_AUTOSHUTDOWN_OFF,
+    POWER_AUTOSHUTDOWN_1_HOUR,
+    POWER_AUTOSHUTDOWN_2_HOURS,
+    POWER_AUTOSHUTDOWN_4_HOURS,
+    POWER_AUTOSHUTDOWN_8_HOURS,
+    POWER_AUTOSHUTDOWN_12_HOURS,
+    POWER_AUTOSHUTDOWN_24_HOURS,
+
+    POWER_AUTOSHUTDOWN_NUM,
+};
+#endif
+
 enum
 {
     SOUND_PULSETYPE_CLICKS,
@@ -438,8 +456,13 @@ typedef struct
     unsigned int pulseThreshold : 4;
 
     unsigned int source : 4;
+#if defined(DOSE_UNITS_GRAY)
+    unsigned int doseUnits : 3;
+    unsigned int secondaryDoseUnits : 3;
+#else
     unsigned int doseUnits : 2;
     unsigned int secondaryDoseUnits : 2;
+#endif
     unsigned int instantaneousAveraging : 3;
     unsigned int averaging : 5;
     unsigned int magneticFieldUnits : 1;
@@ -481,6 +504,9 @@ typedef struct
 
     unsigned int powerBatteryType : 1;
     unsigned int powerUSBAutoPowerOn : 1;
+#if defined(AUTO_SHUTDOWN)
+    unsigned int powerAutoShutdown : 3;
+#endif
 
     unsigned int dataMode : 1;
 

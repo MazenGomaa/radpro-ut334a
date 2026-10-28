@@ -118,6 +118,10 @@ static bool validateState(const State *state)
 
     return (!s->empty &&
             (s->source < SOURCE_NUM) &&
+#if defined(DOSE_UNITS_GRAY)
+            (s->doseUnits < DOSE_UNITS_NUM) &&
+            (s->secondaryDoseUnits < DOSE_UNITS_NUM) &&
+#endif
             (s->instantaneousAveraging < INSTANTANEOUSAVERAGING_NUM) &&
             (s->averaging < AVERAGING_NUM) &&
             (s->tubeType < TUBE_TYPE_NUM) &&
@@ -137,6 +141,9 @@ static bool validateState(const State *state)
             (s->rtcTimeZone < RTC_TIMEZONE_NUM) &&
 #if defined(BATTERY_REMOVABLE)
             (s->powerBatteryType < BATTERYTYPE_NUM) &&
+#endif
+#if defined(AUTO_SHUTDOWN)
+            (s->powerAutoShutdown < POWER_AUTOSHUTDOWN_NUM) &&
 #endif
             true);
 }
