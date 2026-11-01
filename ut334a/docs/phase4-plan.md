@@ -30,7 +30,8 @@ released at tick 1300).
 `tools/fm33_flash.sh flash <signed.bin> --erase-it --no-nrst` (~6 min). If it reports the controller key-locked,
 nothing was erased: battery off 5 s, retry.
 
-**Next:** user day-long test of `65d937a` (2026-10-28), issues reported in a new session; then step 5.
+**Next:** step 5 done 2026-11-01 (fork `5531898` flashed). Main port closed. Optional: HC-05 Bluetooth add-on,
+see `docs/bluetooth-plan.md`.
 
 Remaining work (user 2026-10-27: after these two the project is closed). Stop for confirmation after each:
 1. **Step 9: done 2026-10-28** (auto shutdown + Gray unit flashed, `65d937a`; Schedule, Records, ICRP page not
@@ -39,7 +40,8 @@ Remaining work (user 2026-10-27: after these two the project is closed). Stop fo
    Schedule (start delay + timed measurement), on-screen Records (10 sessions), ICRP info page. Code + emulator,
    then one flash for all of it (settings reset by the erase: set theme/alarm/time zone again; clock can be set
    over serial `SET deviceTime <unix UTC>` or over SWD).
-2. **Step 5, battery calibration (final step):** needs a lower battery. Rad Pro 4.073 V vs meter 4.029 V (+1.1 %)
+2. **Step 5: done 2026-11-01** (divider 0.55, flashed with silent off-state keys and OK-only wake, `5531898`;
+   bench OK). Original note: needs a lower battery. Rad Pro 4.073 V vs meter 4.029 V (+1.1 %)
    at the first point; second point (3.6–3.9 V, USB out, Settings → Statistics → Battery vs meter across the
    battery), then `PWR_BAT_SCALE_FACTOR` (divider 0.5438 → ≈ 0.5497 if it is a pure scale error), flash, close.
 
@@ -107,8 +109,8 @@ From the original brief (§6, `docs/archive/original-brief.md`), updated with th
 - **Keys**: left PA15, OK/power PA10, right PD11 (all active low, pull-up). No power switch: "off" = DeepSleep;
   wake on RTC tick + key poll, and on USB (PA9 EXTI).
 - **Sound**: PB10 GPTIM0 CH1 → 8002A (always enabled). **LED**: bi-colour between PC2 and PC3.
-- **Battery**: PC8 ADC_IN9 vs internal VREF (VREF_CAL at 0x1FFFFB08); divider **0.5438 measured** (stock used
-  0.55); only valid while PC4 is on. Charger 4057; status pins not wired to the MCU; USB present = PA9 high.
+- **Battery**: PC8 ADC_IN9 vs internal VREF (VREF_CAL at 0x1FFFFB08); divider **0.5438 measured** at the pin, **0.55** end to end
+  (2-point calibration 2026-11-01, as stock); only valid while PC4 is on. Charger 4057; status pins not wired to the MCU; USB present = PA9 high.
 - **Flash for settings/datalog**: the stock firmware never writes flash, so the layout is entirely ours.
 - **Comm**: no free UART pad (PA13/PA14 unrouted). Options: solder to PA13/PA14 (UART0/LPUART0), or no comm.
 - **Clocks**: 32.768 kHz crystal on PD9/PD10; stock tick LPTIM 204.8 Hz (its "2 s" window is 1.953 s).

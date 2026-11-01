@@ -31,13 +31,13 @@ On the **UNI-T UT334A**, Rad Pro lets you:
 
 ### UT334A port status
 
-Tested on one unit (last update 2026-10-28, fork commit `65d937a`):
+Tested on one unit (last update 2026-11-01, fork commit `5531898`):
 
 * Working: boot and power on/off, keys, GM counting, pulse click and LED, alert LED and alarm tone (also from
   display sleep; an alert wakes the display as on the stock firmware), all screens, brightness levels, display
   sleep, sound and volume settings, settings saved to flash, battery display, charging icon, charging LED that
-  stays on until full, USB auto power-on, charging screen when USB is plugged in while off, keys and USB re-plug
-  while off.
+  stays on until full, USB auto power-on, charging screen when USB is plugged in while off. While off, only a long OK press (power on) and a USB
+  plug-in (charging screen) do anything; other key presses are ignored (only OK wakes the MCU).
 * Stock-style screens: an **overview screen** (instantaneous rate, average rate and cumulative dose together; OK
   switches its lower part to maximum and secondary-unit rate, or the bar), which with History forms the screen
   cycle (Up/Down); a **3 minute history** view.
@@ -48,8 +48,8 @@ Tested on one unit (last update 2026-10-28, fork commit `65d937a`):
 * Stock calibration as the "UT334A" tube preset (68.27 CPM per µSv/h, the stock low-range factor); low-battery
   power-off as stock (below 3.35 V for 100 s). Off-state current 3–8 µA. Settings survive a battery
   disconnect; after a long one the clock restarts at 2025-01-01.
-* Not yet verified: battery reading accuracy (reads about 1 % high; correction pending), calibration against a
-  reference source (above 0.8 µSv/h the stock firmware reads about 1.5× higher than the single preset factor;
+* Battery reading calibrated against a meter at two points (4.03 V and 3.51 V, within 4 mV).
+* Not yet verified: calibration against a reference source (above 0.8 µSv/h the stock firmware reads about 1.5× higher than the single preset factor;
   which is closer to the truth is unknown).
 
 Upstream Rad Pro devices export and stream over USB; the UT334A needs the serial adapter for this.

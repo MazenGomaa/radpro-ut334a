@@ -568,3 +568,74 @@ All register values copied from emulating the stock routines (`tools/stock_trace
 - Line endings: the step 9 edit had turned 5 CRLF sources LF (whole-file diffs vs upstream); restored to CRLF
   (content unchanged, image unaffected).
 - User: day-long test of `65d937a` next, issues reported in a new session; then step 5.
+
+## 2026-10-29: step 5, battery calibration, second point
+- User: DMM 3.506 V across the battery vs Settings → Statistics → Battery 3.550 V (USB out). First point
+  (2026-10-27): 4.029 V vs 4.073 V. Both read +44 mV high (+1.09 % / +1.25 %).
+- Gain-only fit: ×0.9884 → divider 0.5438 → 0.5502; residuals −3.5 mV at 4.03 V, +2.6 mV at 3.51 V. An offset
+  model (−44 mV) fits both exactly, but two points at ~±2 mV meter/display resolution cannot tell them apart.
+- 2026-11-01: the gain fit (0.5502) matches the stock firmware's divider constant 0.55. With 0.55: 4.027 V
+  (meter 4.029) and 3.510 V (meter 3.506), both within 4 mV. Proposed: `PWR_BAT_SCALE_FACTOR` = 1 / 0.55
+  (gain only, no offset term), build, dry run, flash after "erase it", check one point.
+- Built: fork `ut334a.h` `PWR_BAT_SCALE_FACTOR` = 1 / 0.55 (not committed), en 49620 B, signed image
+  c5b6d270…. Dry run `--no-nrst`: no SWD connection within 180 s (ST-Link/unit not connected?). Not flashed.
+- User: flash later (next session). Handover in CLAUDE.md.
+
+## 2026-11-01: optional add-on, wireless serial (research only, nothing built)
+- User asked: USB-UART bridge vs ESP32 vs BT-05. BT-05/HM-10 are BLE: no COM port on Windows (GeigerLog,
+  radpro-tool need one). Classic SPP (HC-05, JDY-31) gives a COM port on Windows and works with Android
+  "Serial Bluetooth Terminal". USB bridge = no battery cost, but D+/D− on the unit's connector are unknown.
+- makerselectronics.com (2026-11-01): HC-05 195 EGP in stock (VCC 3.6–6 V breakout, 3.3 V logic, ~50 mA,
+  9600 default); JDY-31 130 EGP out of stock (SPP, 1.8–3.6 V, 4.7/7.3 mA); HM-10 345 EGP and PB-03 are BLE.
+- Power fit: comm opens only while USB powered (`updateComm`); Rad Pro's `DATA_MODE` (FS2011: Settings → Power →
+  Data mode) would open it on battery. A module would need a switched supply (free pin, e.g. PA13 QFN 3,
+  no tracks) via N-MOSFET → P-MOSFET as PC4/HVbatt, off in DeepSleep. Not decided.
+- User decisions: HC-05 (in stock). UART5 (PD0/PD1) goes to the HC-05 (PA13/PA14 not solderable), so no
+  wired serial afterwards. Proposed switch (store parts): AO3401 P-MOSFET VBAT → HC-05 VCC, gate 100 kΩ to
+  VBAT, pulled down by an AO3400 N-MOSFET (gate from MCU via 1 kΩ, 100 kΩ to GND). Control pin: PC9 (QFN 22)
+  or PC10 (QFN 23), free in stock; tracks unknown → continuity check first.
+- User: HC-05 power from the "HV enable" (PC4, HVbatt switch) instead of a new pin. PC4 is high whenever the
+  tube is enabled (unit on, `setTubeHVEnabled`), low in DeepSleep; `readBatteryVoltage()` also pulses it while
+  off (charging LED). So the module is on whenever the unit is on (no Data mode off). Risks if VCC is on the
+  HVbatt rail itself: drop across the "39K" P-MOSFET (Rds unknown) lowers the battery reading (divider is on
+  HVbatt), HC-05 current pulses on the LM3478 supply (false counts?). Option B: PC4 only as gate drive for an
+  own AO3400/AO3401 switch from VBAT. Bench checks proposed before choosing.
+- User: back to a dedicated control pin for software on/off (PC4 dropped). Candidates PC9 (QFN 22) /
+  PC10 (QFN 23); continuity check first. Firmware plan: `DATA_MODE` (Settings → Power → Data mode) switches
+  the HC-05 supply and opens/closes UART5; module off in DeepSleep.
+- Plan saved: `docs/bluetooth-plan.md` (hardware edits, firmware edits, tests, open decisions). Bluetooth only.
+
+## 2026-11-01: off-state keys silent (user request)
+- User: while off, no key shows the battery screen; only the OK long press (power on) and a charger plug-in
+  (charging screen) do anything. To be flashed together with the step 5 battery fix.
+- Fork (not committed): `keyboard.c` key release while off queues no `EVENT_KEY_TOGGLEBACKLIGHT` under new flag
+  `POWER_OFF_KEYS_SILENT` (UT334A section of `platformio.ini` and `tools/platformio.ini.base`). Battery
+  connection (boot) and low-battery screens unchanged. Build en OK: 49604 B flash, 12212 B RAM. Not signed,
+  no emulator check yet (to ask).
+- Power question (user): keys are not polled while off: they are WKUP edge wake-ups; the only periodic wake is
+  the RTC 1 s interrupt for the IWDT (4 s, cannot be frozen with the factory option bytes). Option: drop the
+  Left/Right wake-ups, keep OK; saving only on accidental presses (not measured).
+- Emulator (real DeepSleep), build with `POWER_OFF_KEYS_SILENT`: boot → battery screen → DeepSleep; at 9.0 s
+  short press (150 ms) of Left, OK, Right: no display command after 8.5 s, unit stays in DeepSleep (all three).
+  OK held 9.0–13.0 s: display init at 10.1 s, power-on, Measurement view. USB at 9.0 s: display init at 10.0 s,
+  charging screen (green charging icon). 0 key-error locks.
+- User: only OK wakes the unit while off. `fm33_power.c`: WKUP wake-up for the OK key only; DeepSleep check
+  looks at the OK pin only (a held Left/Right no longer keeps the MCU awake). Build en: 49532 B flash.
+- Emulator (real DeepSleep), same cases: Left / Right short press and Left held 4 s → no display command,
+  10633 ticks in DeepSleep (OK short press 10453, previous build Left 10453: the 180 ms awake are gone, i.e.
+  Left/Right no longer wake the MCU). OK short: nothing visible. OK long: power-on at 10.1 s. USB: charging
+  screen at 10.0 s. 0 key-error locks.
+
+## 2026-11-01: flashed battery fix + silent off-state keys + OK-only wake
+- After "erase it": signed en image 66fd43a0… (fork uncommitted: divider 0.55, `POWER_OFF_KEYS_SILENT`,
+  OK-only wake). Dry run `--no-nrst`: unprotected, UID 060808091B04FF0A0066003E. Flash `--no-nrst`, battery
+  power: 512 pages erased, 12433 words, VERIFY OK. Settings reset by the erase. Bench checks pending.
+- Bench (user, 2026-11-01): "all good, works as described": battery reading vs DMM, short presses of Left /
+  Right / OK while off show nothing, OK long press powers on, USB plug-in shows the charging screen.
+  **Step 5 closed.** Fork commit `5531898` (= the flashed image).
+
+## 2026-11-01: end of sixth session
+- On the unit: fork `5531898` (battery divider 0.55, keys silent while off, only OK wakes from off).
+- Main port closed (steps 5 and 9 done; 6 and 8 dropped). Open, optional: HC-05 Bluetooth add-on,
+  `docs/bluetooth-plan.md`. Next for it: H2 continuity check of QFN 22/23 (control pin), H1 HC-05 at 3.5 V,
+  user decisions listed in the plan (Data mode after power-on, low battery, menu label, VBAT tap point).

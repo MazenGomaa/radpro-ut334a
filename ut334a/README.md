@@ -28,6 +28,7 @@ Everything else of the port lives in `platform.io/src/fm33/`. Changes outside it
 | `src/system/power.c`, `src/system/settings.h` | Low battery as stock: power off below 3.35 V held for 100 s (`PWR_BAT_LOW_VOLTAGE`, `PWR_BAT_LOW_SECONDS`) | `UT334A` |
 | `src/main.c`, `src/system/power.h` | `sleepWhilePoweredOff()` in the main loop | `POWER_OFF_SLEEP` |
 | `src/peripherals/keyboard.c`, `src/peripherals/keyboard.h` | `isKeyboardIdle()`: SysTick stops in DeepSleep, so sleeping while off waits until the debounced key release has been seen | `POWER_OFF_SLEEP` |
+| `src/peripherals/keyboard.c` | A key release while off shows nothing (no battery screen); only the long power-key press acts | `POWER_OFF_KEYS_SILENT` |
 | `src/measurements/overview.c/.h`, `src/ui/measurements.c/.h`, `src/measurements/*.c` | Stock-style overview screen; Up/Down = Overview ↔ History; Reset clears rate/max/average/cumulative | `MEASUREMENT_OVERVIEW` |
 | `src/measurements/history.c` | 3 minute history tab | `HISTORY_3_MINUTES` |
 | `src/system/events.c` | An alert wakes a sleeping display (as stock) | `ALERT_WAKES_DISPLAY` |

@@ -174,7 +174,7 @@ There is no MCU PWM for the HV supply (no timer drives a pin other than PB2 back
 |---|---|---|
 | Battery sense | PC8/ADC_IN9 + internal VREF channel; `V[mV] = ch × 3000 × VREF_CAL / (vref × 4095) / 0.55` | [S 0x5658, 0x55E0, 0x56DC] |
 | VREF_CAL | 0x1FFFFB08 = **1645** on this chip (complement valid) | [B dump] |
-| Divider | firmware assumes **0.55**; bench: 2.1970 V at the divider output with 4.040 V at the battery = **0.5438** (resistors not measurable in circuit). So the stock firmware reads the battery ~1.1 % high | [S 0x56B4], [B] |
+| Divider | firmware assumes **0.55**; bench: 2.1970 V at the divider output with 4.040 V at the battery = **0.5438** (resistors not measurable in circuit). End to end (ADC + VREF_CAL), a 2-point check against a meter (4.03 V, 3.51 V; 2026-11-01) fits 0.5502, so the stock constant 0.55 reads correctly (within 4 mV); the port uses 0.55 | [S 0x56B4], [B] |
 | Sampling | every 5 windows (~10 s), 8-sample average (0x2000123C) | [S 0x5398–0x53E8] |
 | Gauge | ≥ 4020 mV → 20/20; else `20 − (4020 − V)/28.5` steps | [S 0x544E–0x548E] |
 | Low battery | < 3350 mV for 10 samples, no external power → power off | [S 0x53EE–0x5430] |
@@ -206,7 +206,7 @@ PB14 the LCD supply (both P-MOSFET high-side switches).
 ## 10. Still unknown → bench measurements
 
 Resolved on the bench 2026-10-25: PC5 → HV run/stop MOSFET; PC4 → HVbatt switch; PB14 → LCD supply switch;
-PC2/PC3 → bi-colour LED; right key → PD11 (QFN 29); battery divider ratio 0.5438 (measured); GM pulse at PA8 ≈ 2.1 V peak, ≈ 60 µs (an earlier "no pulse / constant 0.5 V" was a solder bridge between QFN 5 and 6, since removed); HV ≈ 314 V at the multiplier with a 10 MΩ meter (≈ 425 V unloaded, estimated); 8002A SD → GND, input ← PB10 via coupling cap + 20 kΩ; PA9 → USB 5 V divider;
+PC2/PC3 → bi-colour LED; right key → PD11 (QFN 29); battery divider ratio 0.5438 at the pin (measured), 0.55 end to end (calibrated 2026-11-01); GM pulse at PA8 ≈ 2.1 V peak, ≈ 60 µs (an earlier "no pulse / constant 0.5 V" was a solder bridge between QFN 5 and 6, since removed); HV ≈ 314 V at the multiplier with a 10 MΩ meter (≈ 425 V unloaded, estimated); 8002A SD → GND, input ← PB10 via coupling cap + 20 kΩ; PA9 → USB 5 V divider;
 PA13/PA14 → no tracks; keys: PA15 left, PA10 OK/power.
 
 | # | Question | Measurement | What the result means |
