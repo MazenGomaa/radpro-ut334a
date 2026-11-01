@@ -7,9 +7,9 @@
  * License: MIT
  *
  * The UT334A has no power latch: "off" is DeepSleep with RAM and RTC kept, as in the stock firmware.
- * setPowerEnabled(false) only allows the main loop to enter DeepSleep (sleepWhilePoweredOff()). Wake sources: the three keys (WKUP pins,
- * falling edge), USB power (PA9, EXTI rising edge) and the RTC 1 s interrupt, needed because the IWDT keeps
- * counting in DeepSleep with the factory option bytes.
+ * setPowerEnabled(false) only allows the main loop to enter DeepSleep (sleepWhilePoweredOff()). Wake sources: the OK/power key (WKUP pin,
+ * falling edge; Left and Right do nothing while off), USB power (PA9, EXTI rising edge) and the RTC 1 s
+ * interrupt, needed because the IWDT keeps counting in DeepSleep with the factory option bytes.
  */
 
 #if defined(FM33)
@@ -60,17 +60,16 @@ void clearResetFlags(void)
 
 // DeepSleep
 
-static bool isAnyKeyDown(void)
+// Only OK (long press = power on) wakes the unit while off, so a held Left or Right must not keep it awake
+static bool isOKKeyDown(void)
 {
-    return !gpio_get(KEY_LEFT_PORT, KEY_LEFT_PIN) ||
-           !gpio_get(KEY_RIGHT_PORT, KEY_RIGHT_PIN) ||
-           !gpio_get(KEY_OK_PORT, KEY_OK_PIN);
+    return !gpio_get(KEY_OK_PORT, KEY_OK_PIN);
 }
 
 // SysTick stops in DeepSleep, so the keyboard debounce must have seen the release first
 static bool canEnterDeepSleep(void)
 {
-    return !powerEnabled && !isUSBPowered() && !isAnyKeyDown() && isKeyboardIdle();
+    return !powerEnabled && !isUSBPowered() && !isOKKeyDown() && isKeyboardIdle();
 }
 
 void WKUP_IRQHandler(void)
@@ -88,10 +87,8 @@ static void setDeepSleepWakeup(bool value)
 {
     if (value)
     {
-        // Keys
+        // OK key
         PMU->WKFR = 0xFF;
-        gpio_enable_wakeup(KEY_LEFT_WKUP, false);
-        gpio_enable_wakeup(KEY_RIGHT_WKUP, false);
         gpio_enable_wakeup(KEY_OK_WKUP, false);
         NVIC_ClearPendingIRQ(WKUP_IRQn);
         NVIC_EnableIRQ(WKUP_IRQn);
@@ -111,8 +108,6 @@ static void setDeepSleepWakeup(bool value)
     else
     {
         NVIC_DisableIRQ(WKUP_IRQn);
-        gpio_disable_wakeup(KEY_LEFT_WKUP);
-        gpio_disable_wakeup(KEY_RIGHT_WKUP);
         gpio_disable_wakeup(KEY_OK_WKUP);
 
         NVIC_DisableIRQ(GPIO_IRQn);

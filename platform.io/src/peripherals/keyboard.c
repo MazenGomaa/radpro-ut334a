@@ -361,7 +361,11 @@ void onKeyboardUpdate(void)
         if (keyReleased && (i == keyboard.pressedKey))
         {
             if (!poweredOn)
+            {
+#if !defined(POWER_OFF_KEYS_SILENT)
                 event = EVENT_KEY_TOGGLEBACKLIGHT;
+#endif
+            }
             else if (!keyboard.wasSleeping)
                 event = getKeyReleaseEvent(i, event);
 
