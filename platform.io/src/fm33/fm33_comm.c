@@ -9,7 +9,8 @@
  * Serial port on UART5 (PD0 RX, PD1 TX = QFN 30/31: their only digital function, DFS = 0), 115200 8N1 as the
  * other Rad Pro serial devices. UART5 runs from APBCLK (no kernel clock select): baud = APBCLK / (BGR + 1).
  * The UT334A has no USB data connection: an external USB-serial adapter connects here. Rad Pro opens the port
- * while USB power is present.
+ * while USB power is present (PA9 high); closed, PD0/PD1 are analog, so an adapter powered from VBUS is not fed
+ * through PD1 and its RX divider does not hold PD0 in break. sleepWhilePoweredOff() also closes it.
  */
 
 #if defined(FM33)

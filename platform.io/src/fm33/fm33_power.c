@@ -16,6 +16,7 @@
 
 #include "../fm33/device.h"
 #include "../peripherals/adc.h"
+#include "../peripherals/comm.h"
 #include "../peripherals/keyboard.h"
 #include "../peripherals/led.h"
 #include "../system/power.h"
@@ -183,6 +184,10 @@ void sleepWhilePoweredOff(void)
 
     // The 1 s heartbeat may not have seen a USB unplug yet: record it, or the next plug-in is no edge
     updatePowerState();
+
+    // updateComm() may not have seen the unplug either: with UART5 open, PD1 would feed the unpowered
+    // USB-serial adapter for the whole DeepSleep
+    closeComm();
 
     parkDisplay();
 
