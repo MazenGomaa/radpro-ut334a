@@ -1,6 +1,9 @@
 # HC-05 Bluetooth serial: plan (2026-11-01)
 
-Optional add-on after step 5. Not started: nothing below is built, wired or flashed yet.
+**DROPPED 2026-11-01** (user): with the HC-05 powered from the unit (UART not connected), every message gave
+false counts and alarms; 100 µF only partly helped. See `docs/ut334a-notes.md`. Kept for reference only.
+
+Optional add-on after step 5. Nothing below was flashed.
 Goal: Rad Pro's serial protocol (GeigerLog, `radpro-tool`, Android "Serial Bluetooth Terminal") over Bluetooth,
 with the module switched on and off in software. Decisions so far (notes 2026-11-01):
 - Module: **HC-05** (classic SPP, makerselectronics.com, 195 EGP). BLE modules (BT-05, HM-10) give no COM port
@@ -33,7 +36,7 @@ VBAT ──┬──────────── S
        └───────────┤
                    D
               AO3400 (N)
- control pin ─1k─ G
+ PC10/QFN23 ─1k─ G
               │ S ── GND
             100k
               │
@@ -50,9 +53,26 @@ HC-05 GND ── board GND        HC-05 STATE, EN: not connected
 - VBAT: where to tap it on the board (battery + pad, charger output) is unknown: user to choose. Not from
   HVbatt (its P-MOSFET also feeds the battery divider) and not from the LCD supply.
 
+### Interference and placement (2026-11-01)
+GM tube itself is not RF-sensitive (it counts ionizing events only); the risks are in the electronics and the
+mechanics. Off (Data mode off or unit off) the module is unpowered and has no effect.
+- **Supply noise (most likely issue):** HC-05 current bursts (≈ 30–40 mA pairing, TX peaks) dip VBAT, which also
+  feeds HVbatt (LM3478 + battery divider). Possible effects: small HV shift (tube plateau, expected harmless),
+  low battery reading (earlier low-battery shutdown at < 3350 mV), ground bounce near PA8 (pulse ≈ 2.1 V vs
+  0.6 V threshold: wide margin).
+- **RF pickup:** class 2, ≈ 2.5 mW, frequency hopping: small risk, not zero if the antenna sits on the tube or
+  its anode network.
+- **HV → module:** multiplier is high impedance (µA), module has its own regulator, 1 kΩ UART resistors damp
+  LM3478 switching noise. Real risk is mechanical: contact or arcing.
+- **Placement:** module and wires away from the LM3478, 1.5 mH inductor, diode ladder and both tube ends;
+  Kapton on the module's back, insulated wire; antenna end (PCB trace antenna) pointing away from the tube and
+  HV section, not covered by the battery or metal.
+- **Decoupling:** whether the breakout's own caps are enough is **unknown**. If T6/T7/T7a show a problem, first
+  fix: 10 µF + 100 nF at the module VCC (no large cap: AO3401 inrush would dip VBAT itself).
+
 ### Control pin (open)
-Candidates: **PC9 (QFN 22)**, else **PC10 (QFN 23)**. Stock drives both low and never uses them again; whether
-they have tracks is **unknown** → continuity check first (H2). PA13/PA14 (QFN 3/4): not solderable (user).
+**PC10 (QFN 23)**, chosen after H2 (2026-11-01): QFN 23 free, QFN 22 (PC9) hard-wired to GND (unusable; the
+port never touches it, keep it that way). PA13/PA14 (QFN 3/4): not solderable (user).
 Fallback only: SWD pins (would mean the manual NRST hold for every flash).
 
 ### Before fitting: HC-05 setup (once, on the PC with the FTDI, 3.3 V logic)
@@ -62,7 +82,7 @@ Fallback only: SWD pins (would mean the manual NRST hold for every flash).
 3. Power off, EN open, power on: data mode at 115200 (LED blinks fast until paired).
 
 ## Firmware edits (fork, `ut334a` branch)
-1. `ut334a.h`: `BT_POWER_PORT` / `BT_POWER_PIN` = the pin from H2.
+1. `ut334a.h`: `BT_POWER_PORT` / `BT_POWER_PIN` = GPIOC / 10 (PC10, QFN 23).
 2. `ut334a.c` init: the pin as push-pull output, low (module off from reset).
 3. `platformio.ini` + `tools/platformio.ini.base`, UT334A section: `-DDATA_MODE`. That enables Rad Pro's
    Settings → Power → Data mode (stored bit `settings.dataMode`, default off; string exists in all languages).
@@ -79,7 +99,9 @@ Fallback only: SWD pins (would mean the manual NRST hold for every flash).
 
 ### Open decisions (user)
 - Data mode after power-on: remembered (Rad Pro default), or always off at power-on?
-- Low battery: below the HC-05's 3.6 V spec, keep it on, or switch Data mode off automatically?
+- ~~Low battery~~ **Decided 2026-11-01:** keep the breakout regulator (H1: drops out at ≈ 3.5 V while
+  connected, regulator loses ≈ 0.4 V). Firmware switches Data mode off below ≈ 3.55 V on battery (no USB);
+  it stays off until the user turns it on again. Exact threshold set in the firmware step, checked in T6.
 - Menu label: keep "Data mode" or rename to "Bluetooth" (UT334A only, 30 languages)?
 - Data mode with USB plugged in while on: same as on battery (assumed, to confirm).
 
@@ -87,6 +109,7 @@ Fallback only: SWD pins (would mean the manual NRST hold for every flash).
 Before the firmware:
 - **H1** HC-05 alone at ≈ 3.5 V (the unit's battery today, or a supply): pairs and passes data (loopback
   TXD–RXD). Shows whether it works below its 3.6 V spec.
+  Result 2026-11-01: starts from 3.4 V, dead below (LED dark).
 - **H2** Continuity (battery and USB out; keep away from the diode multiplier, tube ends, LM3478 / 1.5 mH
   inductor): QFN 22 and QFN 23 each against GND, VDD (SWD pad 4), neighbours QFN 21 / 23 / 24, nearby vias.
   Open = free. Short to a neighbour = solder bridge. Pad or via = possible solder point.
@@ -98,8 +121,12 @@ After the flash:
 - **T3** Pair with the PC; "Outgoing" COM port; terminal 115200: `GET deviceId` → `OK UNI-T UT334A;...`.
 - **T4** `radpro-tool.py --port COMx --download-datalog datalog.csv`; GeigerLog live logging.
 - **T5** Android, Serial Bluetooth Terminal: `GET tubeRate`, `GET deviceBatteryVoltage`.
-- **T6** Battery: DMM across the battery vs Settings → Statistics → Battery, module on and connected.
-- **T7** Background count rate, 10 min with the module on vs 10 min off (HV / GM front-end noise).
+- **T6** Battery: DMM across the battery vs Settings → Statistics → Battery, module on and connected, with
+  data streaming (e.g. GeigerLog live), to see how far the reading drops while it transmits.
+- **T7** Background count rate, 10 min with the module **paired and streaming** vs 10 min off (HV / GM
+  front-end noise). Streaming = worst case (most current, most TX).
+- **T7a** (optional, scope) PA8 (QFN 6) while streaming, no source near, trigger 0.6 V rising: anything other
+  than a clean ≈ 2.1 V / ≈ 60 µs pulse is pickup.
 - **T8** Current from the battery while on: Data mode off vs on (and connected).
 - **T9** Power off with Data mode on: HC-05 VCC 0 V; off-state current back to 3–8 µA.
 - **T10** Power on again: Data mode state as decided above.

@@ -639,3 +639,173 @@ All register values copied from emulating the stock routines (`tools/stock_trace
 - Main port closed (steps 5 and 9 done; 6 and 8 dropped). Open, optional: HC-05 Bluetooth add-on,
   `docs/bluetooth-plan.md`. Next for it: H2 continuity check of QFN 22/23 (control pin), H1 HC-05 at 3.5 V,
   user decisions listed in the plan (Data mode after power-on, low battery, menu label, VBAT tap point).
+
+## 2026-11-01: Bluetooth interference review
+- Tube not RF-sensitive; risks are VBAT/HVbatt dips from HC-05 bursts (HV shift, low battery reading, early
+  low-battery shutdown), small RF pickup risk, and mechanical contact/arcing near the HV section. Added to
+  `docs/bluetooth-plan.md`: placement/insulation rules, decoupling fallback, T6 and T7 while streaming, T7a
+  (scope PA8 while streaming). HC-06 raised by the user as an alternative to the HC-05 (open).
+
+## 2026-11-01: H2 continuity (user), HC-05 chosen
+- Module: HC-05 (HC-06 considered, not taken).
+- QFN 22 (PC9): hard-wired to GND. QFN 23 (PC10): free. **Control pin = PC10 (QFN 23).** The port does not
+  configure PC9/PC10 (checked `src/fm33/`); PC9 must never be driven high.
+
+## 2026-11-01: H1 HC-05 alone on a supply (user)
+- Starts from **3.4 V**; below, LED dark, nothing works (breakout spec 3.6 V). Margin to the firmware's
+  low-battery shutdown (3.35 V) is ≈ 50 mV before switch and wiring drops. Drop-out voltage of a running,
+  paired module not measured yet.
+- Start-up test was repeated power cycles from 3.3 V up: echo (loopback) works from 3.4 V.
+- Drop-out test (paired, echoing at 3.7 V, supply lowered): **unresponsive from 3.5 V**, higher than the 3.4 V
+  start-up. Preliminary: supply current limit, lead drop and the meaning of "unresponsive" still to confirm.
+- Drop-out details (user): connection lost in the serial app; supply has no current limit, draw 40–68 mA;
+  3.5 V read on the supply display (not at the module pins).
+- User: bypass the breakout's regulator with a lower-dropout LDO. makerselectronics (searched 2026-11-01):
+  3.3 V LDOs only XC6206P332MR (SOT-23), AMS1117/XBL1117/LM1117-3.3 (≈ 1 V dropout, worse); SPX3819 only in
+  5 V / 1.2 V; LP2951CM (adj., SOIC-8, not better at 70 mA); no AP2112, ME6211, MCP1700, RT9013, HT7333.
+  XC6206 is the usual regulator on HC-05 breakouts ("662K"), so a swap may gain nothing. Next: identify the
+  breakout's regulator and any series diode, and measure its output while running.
+- Bench (user): supply at 3.4 V (module running) → breakout regulator output **3.0 V**: ≈ 0.4 V lost
+  between supply and core (leads, possible series diode, regulator: not split yet). Core runs at 3.0 V.
+- Bench (user): the ≈ 0.4 V is lost in the breakout regulator alone (no lead/diode loss).
+- Battery at 3.5 V: Rad Pro's lowest Li-ion level boundary is 3.527 V (`system/power.c`), so the icon is
+  already at its bottom level; a typical Li-ion cell has ≈ 5–10 % left at 3.5 V (generic curve, this cell
+  not measured). Bluetooth drop-out at 3.5 V thus costs roughly the last 5–10 % before the 3.35 V shutdown.
+- **Decision (user): keep the breakout regulator; firmware auto-off of Data mode below ≈ 3.55 V on battery.**
+
+## 2026-11-01: HC-05 on the unit's supply (user): Bluetooth dropped
+- Setup: HC-05 VCC from the unit (tried HVbatt, then VBAT), UART **not** connected to the MCU (module RX/TX
+  jumpered as a loopback). Every message through the module gave false counts/pulses and set off the alarm.
+- 22 µF across the module did not help; 100 µF mostly fixed it, but small power dips remained.
+- With no data wiring, the disturbance must come from the module's supply current bursts and/or its radio, not
+  from the UART. Not split further (no separate-supply test).
+- **Decision (user): Bluetooth shelved.** `docs/bluetooth-plan.md` kept for reference only. Open need: easy
+  data extraction on phone and PC (see next entry once decided).
+
+## 2026-11-01: data extraction over the charging port (user answers)
+- Idea: USB-serial chip inside the unit, powered from VBUS only, on UART5 (PD0/PD1), data lines to the charging
+  connector. Connector: **USB-C**. D+/D− of the connector are **not wired to anything**; using them needs manual
+  wiring. Back-power protection (series resistors, UART off while PA9 low) to be added (user).
+- User: phone is **Android**; USB-C has the 5.1 kΩ CC resistor; no room for a PCB near the port, so D+/D−
+  run ≈ 10 cm to the module.
+- makerselectronics (searched 2026-11-01): CP2102 5-pin module (120 EGP, 42 × 15 mm, USB-A), PL2303 module
+  (60 EGP), CP2102 6-in-1 (210 EGP), bare CH340C/CH340G SOP-16 (35/20 EGP), OSEPP FTDI (960 EGP); no CH340
+  breakout module. Proposed: **CP2102 5-pin**, USB-A plug removed, D+/D− as a twisted pair.
+
+## 2026-11-04: CH340G chosen (user), level shifting
+- User: **CH340G** instead of the CP2102. Needs an external 12 MHz crystal (the CH340C does not).
+- FM33 datasheet: only **PB12 is 5 V tolerant** (PD0 is not); VIH = 0.7 VDD = 2.1 V at VDD 3.0 V.
+- Options: (A) CH340G on VBUS 5 V, divider on CH340 TXD → PD0 (2.2 k / 2.7 k, ≈ 2.8 V); divider pulls PD0
+  low when unplugged (constant break), so it needs the firmware step U4. (B) CH340G on 3.3 V from an XC6206P332
+  LDO, V3 tied to VCC, 3.3 V I/O, no divider. Proposed: B. Test: PA9 must stay low with the cable unplugged
+  (back-power through the UART lines into VBUS).
+- User: only **1 kΩ** resistors on hand. A: divider 1 k / 1 k → 2.5 V (2.4–2.6 V over VBUS 4.75–5.25 V,
+  VIH 2.1 V). PD1 → RXD: 2 × 1 k in series (≈ 1.2 mA back-power limit unplugged). B: 1 k on TXD → PD0,
+  2 × 1 k on PD1 → RXD.
+
+## 2026-11-04: CH340G built (user): works, alarm on USB connect
+- Unit responds over USB. **On USB connect the alarm went off completely** (false counts suspected). Not
+  isolated yet. Hypotheses: USB bus activity (SOF every 1 ms once enumerated, 12 MHz crystal) coupling into the
+  GM pulse path (PA8) from the 10 cm pair or the module placement; CH340 current on VBUS. Next: one-state tests.
+- SWD live read (read-only, no halt; `tubePulseCount` 0x200005E0, `currentTick` 0x200005DC, `tubeDeadTime`
+  0x200005FC from the 5531898 ELF): before the test, count 7839 at ≈ 696 s uptime (background 9 cpm
+  would give ≈ 105) and shortest pulse interval since boot **6 µs** (not a real GM pulse): ≈ 7500 false
+  counts happened earlier, in fast bursts.
+- Unplug → plug into PC (no serial app, user): 10 counts in the first 28 s (≈ 21 cpm), 1 in the next 30 s;
+  11 in 58 s ≈ 11 cpm overall (expected ≈ 9 at 9 cpm: normal overall; the first 28 s alone are high, P(≥ 10 | 4.2) ≈ 1 %, borderline), no burst; a short
+  unplug/replug at 28–31 s gave none either. SWD link lost at ≈ 58 s after the plug (cause unknown).
+  So plugging in alone did not reproduce the flood this time.
+- User: the alarm event was with the **Arduino IDE serial monitor** open, PC + battery only, **ST-Link not
+  attached**; it also showed a high radiation reading. Repeating the terminal with the ST-Link attached: no alarm.
+- SWD read afterwards: tick 101293 ms, count 21, min interval 905 µs → **the unit had restarted** ≈ 101 s
+  earlier (fits the SWD loss ≈ 58 s after the plug); cause unknown (asked user). 21 counts / 101 s ≈ 12.5 cpm (expected ≈ 15 at 9 cpm: normal).
+- User: the restart was theirs (off/on and battery replugged), not a fault. After it the issue did not come
+  back. **Open:** user will try to reproduce the flood. On return: read count/tick/min interval over SWD
+  (values above) before and after; suspect the ST-Link GND as a masking second ground path.
+- Wiring as built (user): USB-C D+/D− → CH340G UD+/UD−, **one D pair only** (the other receptacle pair is not
+  bridged), USB 5 V and GND → CH340G. PD1 (FM33 TX) → 1 kΩ → CH340 RXD. CH340 TXD → 1 k/1 k divider → PD0.
+  Extra GND wire MCU GND ↔ CH340 GND (return path for TX/RX). Option A (CH340G at 5 V).
+- Notes: data only works with the plug in one orientation (charging works both ways). PD1 has 1 kΩ, not 2 kΩ:
+  back-power when unplugged up to ≈ 2.4 mA; PA9 read 0 when unplugged (2026-11-04, ST-Link attached). The extra
+  GND wire closes a loop with the USB GND path: a suspect to remove if the false counts come back.
+- Old background, **stock firmware, June 2025** (user photos, readings confirmed by the user; date/time as shown,
+  correct per user):
+
+  | Date / time | Real-time µSv/h | Average µSv/h | Duration | Total dose µSv |
+  |---|---|---|---|---|
+  | 2025-06-11 09:3?:?0 (glare) | 0.10 | 0.13 | 011:00:44 | 1.46 |
+  | 2025-06-14 01:14:29 | 0.10 | 0.13 | 002:31:46 | 0.35 |
+  | 2025-06-15 02:10:07 | 0.13 | 0.12 | 001:07:20 | 0.14 |
+  | (date unreadable) | 0.14 | 0.13 | 024:09:30 | 3.18 |
+  | 2025-06-18 10:16:16 | 0.08 | 0.13 | 058:19:50 | 7.68 |
+  | 2025-06-20 15:20:51 | 0.08 | 0.13 | 112:20:36 | 14.82 |
+
+  Dose / duration = 0.125–0.138 µSv/h for every photo; longest run 14.82 µSv / 112.34 h = **0.132 µSv/h**
+  ≈ **9.0 CPM** at the UT334A preset (68.27 CPM per µSv/h), matching the 9 CPM (2026-10-25) and 8.5 CPM
+  (2026-10-27) seen under Rad Pro. Reference for spotting false counts: background ≈ 9 CPM ≈ 0.13 µSv/h.
+- User could not reproduce the flood. Next: unit closed, USB to PC overnight (soak test). Check in the morning:
+  average/total dose vs ≈ 0.13 µSv/h, alarm, and the Rad Pro datalog over the new USB link (when any burst hit).
+- Soak started. **On plugging the USB in: many pulses that sounded like 50 Hz hum** (user). Hypothesis (not
+  confirmed): mains leakage from the PC (this PC is a laptop; an unearthed charger puts ≈ half-mains AC through
+  Y-capacitors on its ground) reaching the GM input once the battery-floating unit is tied to PC ground. Fits the
+  first flood (≈ 7500 counts ≈ 150 s at 50/s). Test: laptop on battery (charger out), then on an earthed outlet.
+- User: the hum happened **while holding the unit**; it stopped once set down (soak running, plugged in). Fits
+  the hypothesis: the hand closes the path from the PC's AC-leaky ground through the unit to earth. Would also
+  explain why it was intermittent. Later test: hold the unit while plugged in, laptop on charger vs on battery.
+
+## 2026-11-04: end of seventh session
+- On the unit: still fork `5531898` (no firmware change this session). Hardware: internal CH340G USB serial
+  (`ut334a-hardware.md` §7). Bluetooth dropped.
+- Open: overnight soak result; confirm the 50 Hz hum cause (held unit, laptop on charger vs battery); fix
+  choice; optional firmware U4 (UART5 off while PA9 low); Android OTG test.
+- Added `tools/swd_pulse_watch.tcl` (read-only live pulse counter watch, waits for USB unplug → plug).
+
+## 2026-11-04 (eighth session): overnight soak result
+- First serial try at ≈ 07:10: COM18 (CH340) opened but Rad Pro sent nothing (LF and CRLF, DTR/RTS off and on).
+  User did something on the unit (not stated), then all reads worked (`GET deviceId` → `UNI-T UT334A;Rad Pro
+  3.1.2test2/en`, battery 4.189 V). Cause of the silent first try unknown.
+- `GET tubeRate` 292.6 cpm at 07:14, falling to 58.8 within 20 s, then ≈ 1 count / 5 s: a burst just before.
+- Datalog (`GET datalog`, saved in the session scratchpad): RTC was set ≈ 01:09 (log walks 2003 → 2026-11-04),
+  then 1 min logging. **01:54 → 07:03 (5.15 h, untouched on USB): 2859 counts = 9.25 cpm**, per-minute
+  variance 10.7 ≈ mean (Poisson), max 20/min: **clean, matches the 9 cpm background.** Only bursts:
+  01:53 (332 counts in 1 min) and 07:03–07:06 (263, 199, 694 counts/min), i.e. at the start and end
+  of the soak, when the unit was probably handled (to be confirmed by the user).
+- So the USB link alone, with the unit untouched, gives no false counts; supports the hand / mains-leakage hypothesis.
+- Older datalog segments carry wrong RTC years (2002, 2088, 2092, 2102); cause not checked (likely earlier runs before the clock was set).
+
+## 2026-11-04: 50 Hz hum cause confirmed (laptop charger leakage)
+- Live serial log, 2 s steps (`GET tubePulseCount`, `GET tubeRate`), unit on USB to the laptop, held by the user.
+- State 1, laptop **on its charger**, unit held: hum heard. 07:16:01 → 07:16:23: 13644 → 13882 = **238 counts
+  in 22 s ≈ 650 cpm** (rate peaks 2460 and 2890 cpm), in bursts (2 s steps of 0 to 52 counts).
+- State 2, **charger pulled**, still held: hum stopped (user). From 07:16:25: **0 counts** over the following
+  8 s+ (the displayed rate holds the last value until the next pulse).
+- Conclusion: the false counts come from the laptop charger's leakage onto the laptop ground (Y-capacitors, unearthed
+  charger) reaching the GM input through the USB GND when the hand gives a path to earth. Untouched or laptop on
+  battery: clean (overnight 9.25 cpm). Fix options: usage rule, USB isolator, or GM input filtering (to decide).
+- **Decision (user): fix option 1, usage rule.** Do not hold the unit while it is plugged into a PC whose
+  charger is connected (or any unearthed mains-powered host). No hardware or firmware change for this fault.
+
+## 2026-11-04: user findings, stock vs port pulse counting, firmware U4 (not flashed)
+- **First silent serial read explained (user):** the wires soldered on the QFN (UART5 PD0/PD1) had broken
+  off. User resoldered them and fixed them in place with UV solder mask.
+- **Hum coupling (user):** with the laptop on its charger and the unit plugged in, just bringing a hand
+  **close to the GM tube** triggers the false counts (no touch needed). So the hand couples capacitively to the
+  tube / GM input while the unit sits at the charger's leakage potential.
+- User does not recall this with the stock firmware, nor before the mod (whether the stock firmware was ever held
+  near the tube while charging from the laptop on its charger: unknown).
+- **Stock vs port difference (static analysis, `analysis/ghidra/decompiled_resolved.c` 0x2750):** the stock COMP
+  ISR counts a pulse only if COMP2_CR.CMP2O (bit 8) is **still high when the ISR runs**
+  (`(COMP2_CR & 0x100) == 0x100`; 0x100 comes from `COMP_ICR >> 22`). The port (`fm33_tube.c`) counts every
+  interrupt. Narrow spikes (charger switching noise riding on the 50 Hz leakage) can set the edge flag and be
+  gone before the ISR reads CMP2O: stock drops them, the port counts them. Fits the 6 µs / 25 µs shortest
+  intervals seen (a real GM pulse stays above 0.6 V for ≈ 45–50 µs). **Hypothesis, not tested.**
+  Proposed firmware step U5: same CMP2O check in the port ISR. Test: held near the tube on the charger,
+  counts with U5 vs without.
+- **Firmware U4 committed, not flashed** (fork `99552fe`, build `uni-t-ut334a-en` OK, bin SHA-256
+  `5c12a788…aaf1ac8c`, RAM 12212 B, flash 49604 B; SWD addresses unchanged: `tubePulseCount` 0x200005E0,
+  `currentTick` 0x200005DC, `tubeDeadTime` 0x200005FC). Finding: Rad Pro's `updateComm()` already opens UART5
+  only while PA9 is high (no `DATA_MODE` in the UT334A env), and `closeComm()` sets PD0/PD1 analog. Gap fixed:
+  `sleepWhilePoweredOff()` now calls `closeComm()` before DeepSleep, in case PA9 dropped between `updateComm()`
+  and the sleep check (UART5 open in DeepSleep = PD1 high feeding the CH340G through 1 kΩ).
+  Flash on the next unit connect (battery power, `--no-nrst`, only after "erase it").
+- Unit now disconnected for some time (user). User will run the Android OTG test and report.

@@ -55,16 +55,16 @@ QFN-32 numbering from datasheet fig. 2-4 (pin 1 = PD8, counter-clockwise); pads 
 | 19 | PC4 | **HV-rail switch**: N-MOSFET ("C") → gate of P-MOSFET ("39K") VBAT → **HVbatt** (LM3478 supply and battery divider) | out PP | – | high = on | [S 0x594C, 0xA904], [B] |
 | 20 | PC5 | **HV converter run/stop**: 200 Ω → N-MOSFET ("C") gate; drain → 160 kΩ → LM3478 pin 7 (FA/SD), drain also 47 kΩ to HVbatt. PC5 high = FA/SD sees 160 kΩ to GND = converter runs; PC5 low = FA/SD pulled up = shutdown. Firmware bursts: 1 tick in 5 (4.9 ms every 24.4 ms, 41 Hz, 20 %) + one burst after every GM pulse | out PP | – | high = HV on | [S 0x2788, 0x627E–0x629E], [B] |
 | 21 | PC8 | **Battery sense**, ADC_IN9, divider (ratio 0.55) on **HVbatt**, so only valid while PC4 is on | analog | – | – | [E 0x6950], [S 0x5658], [B] |
-| 22 | PC9 | output, driven low; never used afterwards | out PP | – | – | [S 0x6C10] |
-| 23 | PC10 | output, driven low; never used afterwards | out PP | – | – | [S 0x6C10] |
+| 22 | PC9 | output, driven low; never used afterwards. **Bench: hard-wired to GND** (never drive high) | out PP | – | – | [S 0x6C10], [B] |
+| 23 | PC10 | output, driven low; never used afterwards. **Bench: free** (open to GND, VDD, neighbours). Was planned for HC-05 power control (Bluetooth dropped 2026-11-01) | out PP | – | – | [S 0x6C10], [B] |
 | 24 | PD9 | XT32KO (32.768 kHz crystal) | analog | – | – | [S 0x6DB2] |
 | 25 | PD10 | XT32KI | analog | – | – | [S 0x6DCC] |
 | 26 | VDD15 | 1.5 V core LDO output (cap) | – | – | – | [DS 2.1.4] |
 | 27 | VSS | ground | – | – | – | [DS] |
 | 28 | VDD | 3.0 V supply (SWD pad 4 measured 3.0 V) | – | – | – | [B] |
 | 29 | PD11 | **Right key** (firmware flag 0x20000E2A), bench-confirmed | in | pull-up | low | [S 0x2484], [B] |
-| 30 | PD0 | output, driven low; never used afterwards. **Port: UART5_RX** (serial wire soldered here 2026-10-27) | out PP | – | – | [S 0x6BBA] |
-| 31 | PD1 | output, driven low; never used afterwards. **Port: UART5_TX** (serial wire soldered here 2026-10-27) | out PP | – | – | [S 0x6BBA] |
+| 30 | PD0 | output, driven low; never used afterwards. **Port: UART5_RX** (serial wire soldered here 2026-10-27; since 2026-11-04 from the internal CH340G TXD via a 1 k/1 k divider, see §7) | out PP | – | – | [S 0x6BBA] |
+| 31 | PD1 | output, driven low; never used afterwards. **Port: UART5_TX** (serial wire soldered here 2026-10-27; since 2026-11-04 to the internal CH340G RXD via 1 kΩ, see §7) | out PP | – | – | [S 0x6BBA] |
 | 32 | PD7 | SWCLK. **Stock FW parks it: output, driven low** | out PP | – | – | [S 0x6BBA], SWD pad 3 [B] |
 
 Notes:
@@ -126,7 +126,7 @@ Window/write: `2A x0 x1` (16-bit), `2B y0 y1` (16-bit), `2C` then pixels [S 0x5C
 | Input | PA8 → **COMP2** positive input (INP1); negative input **VREF/2 = 0.6 V**; polarity non-inverted; digital filter on (CMP2DF) | [E 0x6A4C], [DS §17.5] |
 | Interrupt | COMPx IRQ 25, priority 2; CMP2IE set in board_init | [S 0x6AFA, 0x6D48] |
 | Pulse shape at PA8 [B] | baseline ≈ 0.04–0.08 V, sharp rise to **≈ 2.1 V** (1.9–2.2 V), decay to baseline in **≈ 60 µs**; above the 0.6 V threshold for ≈ 45–50 µs. Scope 10 µs/div, trigger 1.76 V rising (2026-10-25) | [B] |
-| Counting | ISR `0x2750`: if CMP2 flag and `CMP2O`=1 → `pulse_count(0x20000E34)++`; no software dead time (only the comparator filter) | [S 0x2750] |
+| Counting | ISR `0x2750`: if CMP2 flag and `CMP2O`=1 (output still high when the ISR runs) → `pulse_count(0x20000E34)++`; no software dead time (only the comparator filter). The port counts every edge (no CMP2O check) | [S 0x2750] |
 | Per-pulse effects | PC5 high; PC3 high unless 0x20000000 (off-state) set; if "particle sound" on (0x20000DAA==8) and not alarming: GPTIM0 CCR1=0x19C8, start tone | [S 0x2750] |
 | Pulse effect end | LPTIM tick ISR: after 2 ticks (≈9.8 ms) stops GPTIM0 and clears PC3 | [S 0x6254] |
 
@@ -187,6 +187,8 @@ There is no MCU PWM for the HV supply (no timer drives a pin other than PB2 back
 
 There is no separate power-latch pin: "off" is MCU DeepSleep with RAM and RTC retained. PC4 switches the HVbatt rail (HV converter + battery divider),
 PB14 the LCD supply (both P-MOSFET high-side switches).
+
+**Internal USB serial (user mod, 2026-11-04).** CH340G (12 MHz crystal) at USB 5 V inside the unit. USB-C D+/D− → CH340G UD+/UD−, **one D pair only** (data works with the plug in one orientation; charging both). USB 5 V and GND → CH340G; extra GND wire MCU GND ↔ CH340G GND. PD1 (TX) → 1 kΩ → CH340G RXD; CH340G TXD → 1 kΩ → PD0 (RX), 1 kΩ PD0 → GND (≈ 2.5 V; only PB12 is 5 V tolerant, VIH 0.7 VDD = 2.1 V). USB-C has 5.1 kΩ on CC. Works on PC (COM port). False counts (50 Hz hum) when the unit is held while plugged into a laptop on its charger: confirmed charger leakage on the PC ground (2026-11-04); handled by a usage rule, not hardware; a hand near the GM tube is enough. UART5 is open only while PA9 is high (Rad Pro `updateComm()`), and closed before DeepSleep from fork `99552fe` (`ut334a-notes.md` 2026-11-04). With the cable unplugged the divider holds PD0 low (UART break) and PD1 back-feeds the unpowered CH340G through 1 kΩ (planned firmware fix: UART5 off while PA9 low). [B]
 
 ## 8. RTC, settings and records storage
 
