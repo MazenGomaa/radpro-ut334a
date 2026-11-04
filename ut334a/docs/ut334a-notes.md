@@ -809,3 +809,10 @@ All register values copied from emulating the stock routines (`tools/stock_trace
   and the sleep check (UART5 open in DeepSleep = PD1 high feeding the CH340G through 1 kΩ).
   Flash on the next unit connect (battery power, `--no-nrst`, only after "erase it").
 - Unit now disconnected for some time (user). User will run the Android OTG test and report.
+- **Decision (user):** U5 (CMP2O check) on hold. First a **full stock vs port comparison** (every stock ISR and
+  driver against `fm33/`) to find any other leftovers like this, then fix them together.
+
+## 2026-11-04: end of eighth session
+- On the unit: still fork `5531898`. Committed, not flashed: `99552fe` (U4). Unit disconnected for now.
+- Next: Android OTG tests (user, new session); flash `99552fe` on the next connect; full stock vs port
+  comparison; then U5 and other fixes.
