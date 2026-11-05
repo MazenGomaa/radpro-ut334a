@@ -7,9 +7,7 @@
  * License: MIT
  *
  * HV: no timer drives PC5, so the stock burst pattern is generated from SysTick (onTubeHVTick()).
- * Pulses: COMP2 rising-edge interrupt, timestamped by BSTIM32 running free at 1 MHz. The stock firmware
- * interrupts on both edges (its FL library writes CMP2SEL unshifted, leaving 00) and counts only while CMP2O
- * is high; the rising edge with the same CMP2O check counts the same pulses with half the interrupts.
+ * Pulses: COMP2 rising-edge interrupt, timestamped by BSTIM32 running free at 1 MHz.
  */
 
 #if defined(FM33)
@@ -109,11 +107,6 @@ void TUBE_DET_IRQ_HANDLER(void)
 
     uint32_t timerCount = TUBE_DET_TIMER->CNT;
     uint32_t timerTick = currentTick;
-
-    // As stock (0x2750): count only if the comparator output is still high. A GM pulse stays above the
-    // threshold for about 45 us; spikes gone before the ISR runs (mains hum through the hand) are dropped
-    if (!get_bits(TUBE_DET_COMP->CR, COMP2_CR_CMP2O_Msk))
-        return;
 
     tubePulseCount++;
 
