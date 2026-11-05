@@ -816,3 +816,74 @@ All register values copied from emulating the stock routines (`tools/stock_trace
 - On the unit: still fork `5531898`. Committed, not flashed: `99552fe` (U4). Unit disconnected for now.
 - Next: Android OTG tests (user, new session); flash `99552fe` on the next connect; full stock vs port
   comparison; then U5 and other fixes.
+
+## 2026-11-04 (ninth session): Android OTG test passed
+- Phone (Android) to unit over a plain USB-C to USB-C cable, app "Serial USB Terminal" (Kai Morich), 115200 8N1.
+- User: **all worked as described**: CH340 detected, phone powers VBUS, `GET deviceId` / battery / tubeRate /
+  tubePulseCount replies, held near the tube with the phone on battery, replug.
+- Next (user): plan a Flutter Android app for full device control, data logging and later viewing.
+
+## 2026-11-05: U4 flashed (fork `99552fe`)
+- After "erase it": signed en image `7a323b00…88107a4` (signed from the `99552fe` build `5c12a788…`; only header
+  bytes 0x22/0x25 differ, as usual).
+- First dry run `--no-nrst` failed (ST-Link seen, 3.22 V, "unable to connect to the target"): the **unit was
+  powered off** (Rad Pro holds the MCU in DeepSleep, SWD does not answer). With the unit on: unprotected,
+  UID 060808091B04FF0A0066003E, FLS not locked. **Flash/dry run need the unit switched on.**
+- Flash `--no-nrst`, battery power, USB unplugged: 512 pages erased, 12451 words, VERIFY OK. Settings reset by
+  the erase. Bench checks pending.
+- Bench checklist for U4 (user wants the full list at once):
+  1. Boots into Rad Pro, normal measurement screen. **Pass** (user, 2026-11-06).
+  2. OK long press → off; short Left / Right / OK while off do nothing. **Pass** (user, 2026-11-06).
+  3. OK long press while off → powers on. **Pass**.
+  4. Unit off, USB-C into a phone or wall charger → charging screen, charging LED. **Pass**.
+  5. Unit on, phone serial app (115200): `GET deviceId`, `GET tubePulseCount` answer. **Pass**.
+  6. Unit on with USB serial connected → power off → unplug USB → power on: starts normally, serial works on replug. **Pass**.
+  7. Unit off, USB unplugged: DMM PD1 (QFN 31) to GND ≈ 0 V (UART5 closed; no back-feed into the CH340G). **Pass**.
+  8. Settings reset by the erase: set date/time and the user's settings again. **Done**.
+  9. On battery, untouched, a few minutes: background rate plausible (overnight soak 9.25 cpm). **Pass**.
+- 2026-11-06 (user): checks 3–9 all passed. **U4 closed**; on the unit: fork `99552fe`.
+
+## 2026-11-06: end of tenth session
+- On the unit: fork `99552fe` (U4), bench-checked.
+- Next: full stock vs port comparison (every stock ISR/driver vs `fm33/`), then U5 (CMP2O check) with the other
+  findings. Android app: APK 1 awaiting the user's test.
+
+## 2026-11-06 (eleventh session): full stock vs port comparison, U5
+Every stock ISR and driver (`analysis/ghidra/`, disassembly checked where the decompiler was unclear) against
+`radpro/platform.io/src/fm33/`. Behavioural differences found:
+
+| # | Area | Stock | Port | Action |
+|---|---|---|---|---|
+| 1 | GM pulse IRQ (0x2750, 0x6A4C, 0x391C) | **COMP2 interrupts on both edges**: the FL library writes the edge value (1) into ICR unshifted, so CMP2SEL stays 00 (= both edges, datasheet 17.5.3) and the unused CMP1IE bit gets set. The ISR counts only if CMP2O is still high, which drops falling edges and spikes shorter than the IRQ latency | rising edge only, every interrupt counted | **U5**: same CMP2O check (rising edge kept: same pulses, half the IRQs) |
+| 2 | Per-pulse effects | PC5 HV burst, LED, click only for accepted pulses | for every interrupt | follows from U5 (early return) |
+| 3 | IRQ priorities | LPTIM tick 0, RTC 1, COMP 2 | COMP 0, UART 0 (`NVIC_SetPriority(.., 0x40)` truncates to 0 with 2 priority bits), SysTick 2 | keep: COMP at top priority keeps the latency far below the ≈ 45 µs pulse width |
+| 4 | BOR | `board_init` sets BORCR.OFF_BOR_1P2: BOR off **while running** too | BOR off only during DeepSleep | keep (safer) |
+| 5 | Unused pins | PA13/PA14, PC9, PC10, PD0/PD1 driven low | left at reset (input buffer off); PD0/PD1 = UART5 | keep (PC9 is hard-wired to GND: not driving it is safer) |
+| 6 | Off-state parking (0xA884) | PA8 and PC8 open-drain low | left analog | keep (no leakage either way) |
+| 7 | DeepSleep wake | PA9 EXTI only, no RTC wake (IWDT keeps counting: presumably resets) | OK key, PA9, RTC 1 s for the IWDT | keep (intentional) |
+| 8 | Tick, HV bursts | LPTIM 204.8 Hz: PC5 on 4.9 ms every 24.4 ms, after a pulse until the next tick (0–4.9 ms) | SysTick 1 kHz: 5 ms every 24 ms, 2–3 ms after a pulse | keep (equivalent) |
+| 9 | Flash | never written | settings and datalog | note: with U5, a pulse during a flash page erase (CPU stalled) is lost instead of counted late; rare |
+| 10 | Measurement, calibration, alarms, gauge, auto off, keys, click/LED length | stock UI logic | Rad Pro's own (low battery and charging already as stock) | by design |
+| 11 | ADC, backlight PWM, tone PWM, SPI 32 MHz, LCD init, RTC init, PA9 EXTI filter, clocks | – | match (SPI polled instead of DMA) | none |
+
+- Comparator filter: CMP2DF = 3 APBCLK samples (≈ 47 ns at 64 MHz), same in both; it does not stop µs spikes.
+- **U5 committed in the fork (`c73979b`)**: `COMPx_IRQHandler` returns before counting if COMP2_CR.CMP2O is low
+  (checked in the disassembly: reads 0x4001A874, bit 8). Build `uni-t-ut334a-en` OK, RAM 12212 B, flash 49616 B,
+  bin SHA-256 `f2885d56…6c92a`, signed en image `2f954a4f…e77cc1` (only header bytes 0x22/0x25 differ).
+  SWD addresses unchanged: `tubePulseCount` 0x200005E0, `currentTick` 0x200005DC, `tubeDeadTime` 0x200005FC.
+- Test still to do (user): unit on USB to the laptop **on its charger**, hand near the tube: with U5 the hum
+  should give no counts (before: ≈ 650 cpm). If counts remain, the spikes are wider than the IRQ latency and a
+  pulse-width check (both edges, BSTIM32 timestamps, e.g. ≥ 20 µs) would be the next step.
+- **U5 flashed 2026-11-06** (user said "erase it"): dry run `--no-nrst` unprotected, same UID; flash `--no-nrst`:
+  512 pages erased, 12454 words, VERIFY OK. Settings reset by the erase (set date/time and settings again).
+  Unit was connected over SWD; whether USB was unplugged during the flash was not checked.
+- Bench checks for U5 (user):
+  1. Boots into Rad Pro; set date/time and settings again.
+  2. On battery, untouched, a few minutes: background plausible (≈ 9 cpm); pulse click/LED still on each count.
+  3. Hum test: USB to the laptop **on its charger**, hand near the tube (as on 2026-11-04): counts should stay at
+     background (before U5 ≈ 650 cpm). Watch with `GET tubePulseCount` every few seconds.
+  4. Same with the charger pulled: background.
+
+## 2026-11-06: end of eleventh session
+- On the unit: fork `c73979b` (U5), bench checks pending.
+- Next: U5 bench checks above (hum test is the main one); if hum counts remain, plan a pulse-width check.

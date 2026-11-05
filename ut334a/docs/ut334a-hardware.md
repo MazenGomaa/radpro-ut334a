@@ -123,10 +123,10 @@ Window/write: `2A x0 x1` (16-bit), `2B y0 y1` (16-bit), `2C` then pixels [S 0x5C
 
 | Item | Value | Evidence |
 |---|---|---|
-| Input | PA8 → **COMP2** positive input (INP1); negative input **VREF/2 = 0.6 V**; polarity non-inverted; digital filter on (CMP2DF) | [E 0x6A4C], [DS §17.5] |
+| Input | PA8 → **COMP2** positive input (INP1); negative input **VREF/2 = 0.6 V**; polarity non-inverted; digital filter on (CMP2DF, 3 APBCLK samples ≈ 47 ns). Interrupt on **both edges**: the FL init (0x391C) writes the edge value unshifted, so CMP2SEL stays 00 | [E 0x6A4C], [S 0x3A76], [DS §17.5] |
 | Interrupt | COMPx IRQ 25, priority 2; CMP2IE set in board_init | [S 0x6AFA, 0x6D48] |
 | Pulse shape at PA8 [B] | baseline ≈ 0.04–0.08 V, sharp rise to **≈ 2.1 V** (1.9–2.2 V), decay to baseline in **≈ 60 µs**; above the 0.6 V threshold for ≈ 45–50 µs. Scope 10 µs/div, trigger 1.76 V rising (2026-10-25) | [B] |
-| Counting | ISR `0x2750`: if CMP2 flag and `CMP2O`=1 (output still high when the ISR runs) → `pulse_count(0x20000E34)++`; no software dead time (only the comparator filter). The port counts every edge (no CMP2O check) | [S 0x2750] |
+| Counting | ISR `0x2750`: if CMP2 flag and `CMP2O`=1 (output still high when the ISR runs) → `pulse_count(0x20000E34)++`; no software dead time (only the comparator filter). The port does the same check on a rising-edge IRQ from fork `c73979b` (U5); before, it counted every edge | [S 0x2750] |
 | Per-pulse effects | PC5 high; PC3 high unless 0x20000000 (off-state) set; if "particle sound" on (0x20000DAA==8) and not alarming: GPTIM0 CCR1=0x19C8, start tone | [S 0x2750] |
 | Pulse effect end | LPTIM tick ISR: after 2 ticks (≈9.8 ms) stops GPTIM0 and clears PC3 | [S 0x6254] |
 
@@ -188,7 +188,7 @@ There is no MCU PWM for the HV supply (no timer drives a pin other than PB2 back
 There is no separate power-latch pin: "off" is MCU DeepSleep with RAM and RTC retained. PC4 switches the HVbatt rail (HV converter + battery divider),
 PB14 the LCD supply (both P-MOSFET high-side switches).
 
-**Internal USB serial (user mod, 2026-11-04).** CH340G (12 MHz crystal) at USB 5 V inside the unit. USB-C D+/D− → CH340G UD+/UD−, **one D pair only** (data works with the plug in one orientation; charging both). USB 5 V and GND → CH340G; extra GND wire MCU GND ↔ CH340G GND. PD1 (TX) → 1 kΩ → CH340G RXD; CH340G TXD → 1 kΩ → PD0 (RX), 1 kΩ PD0 → GND (≈ 2.5 V; only PB12 is 5 V tolerant, VIH 0.7 VDD = 2.1 V). USB-C has 5.1 kΩ on CC. Works on PC (COM port). False counts (50 Hz hum) when the unit is held while plugged into a laptop on its charger: confirmed charger leakage on the PC ground (2026-11-04); handled by a usage rule, not hardware; a hand near the GM tube is enough. UART5 is open only while PA9 is high (Rad Pro `updateComm()`), and closed before DeepSleep from fork `99552fe` (`ut334a-notes.md` 2026-11-04). With the cable unplugged the divider holds PD0 low (UART break) and PD1 back-feeds the unpowered CH340G through 1 kΩ (planned firmware fix: UART5 off while PA9 low). [B]
+**Internal USB serial (user mod, 2026-11-04).** CH340G (12 MHz crystal) at USB 5 V inside the unit. USB-C D+/D− → CH340G UD+/UD−, **one D pair only** (data works with the plug in one orientation; charging both). USB 5 V and GND → CH340G; extra GND wire MCU GND ↔ CH340G GND. PD1 (TX) → 1 kΩ → CH340G RXD; CH340G TXD → 1 kΩ → PD0 (RX), 1 kΩ PD0 → GND (≈ 2.5 V; only PB12 is 5 V tolerant, VIH 0.7 VDD = 2.1 V). USB-C has 5.1 kΩ on CC. Works on PC (COM port). False counts (50 Hz hum) when the unit is held while plugged into a laptop on its charger: confirmed charger leakage on the PC ground (2026-11-04); handled by a usage rule, not hardware; a hand near the GM tube is enough. UART5 is open only while PA9 is high (Rad Pro `updateComm()`), and closed before DeepSleep from fork `99552fe` (`ut334a-notes.md` 2026-11-04). With the cable unplugged the divider holds PD0 low (UART break); before `99552fe` PD1 could back-feed the unpowered CH340G through 1 kΩ if UART5 was still open at DeepSleep (fixed: `closeComm()` before DeepSleep, flashed 2026-11-05). [B]
 
 ## 8. RTC, settings and records storage
 
