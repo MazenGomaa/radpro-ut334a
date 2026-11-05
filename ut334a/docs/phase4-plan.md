@@ -30,8 +30,8 @@ released at tick 1300).
 `tools/fm33_flash.sh flash <signed.bin> --erase-it --no-nrst` (~6 min). If it reports the controller key-locked,
 nothing was erased: battery off 5 s, retry.
 
-**Next:** step 5 done 2026-11-01 (fork `5531898` flashed). Main port closed. Optional: HC-05 Bluetooth add-on,
-see `docs/bluetooth-plan.md`.
+**Next:** nothing pending. Final build U4 = fork `99552fe` (flashed 2026-11-05). Bluetooth add-on dropped; the
+50 Hz hum on a charging laptop's USB is a known hardware issue handled by a usage rule (`ut334a-notes.md` 2026-11-06).
 
 Remaining work (user 2026-10-27: after these two the project is closed). Stop for confirmation after each:
 1. **Step 9: done 2026-10-28** (auto shutdown + Gray unit flashed, `65d937a`; Schedule, Records, ICRP page not

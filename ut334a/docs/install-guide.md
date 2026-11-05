@@ -128,7 +128,12 @@ The UT334A's USB-C socket only charges. For Rad Pro's PC link (GeigerLog, data l
 | VCC | **leave unconnected** |
 
 The MCU runs at 3.0 V: use 3.3 V logic (never 5 V) and keep the 1 kΩ resistor. Settings: 115200 baud, 8N1.
-Rad Pro opens the port only while USB power is present, so keep the USB charger plugged in. Test with a terminal: `GET deviceId` + Enter answers `OK UNI-T UT334A;...`.
+Rad Pro opens the port only while USB power is present, so keep the USB charger plugged in.
+
+**Known issue (mains hum):** with the unit plugged into a laptop that is on its charger, touching the unit or
+holding a hand near the GM tube gives false counts (hundreds to thousands of CPM), from the charger's leakage
+through USB ground and your body. Don't take readings in that setup: run on battery, from a phone (OTG), or with
+the laptop charger unplugged. Test with a terminal: `GET deviceId` + Enter answers `OK UNI-T UT334A;...`.
 Tested 2026-10-27 with an FTDI adapter (`GET deviceId`, `GET tubeSensitivity`, `GET datalog`). Builds before
 fork commit `ad932fc` used UART0 (PA13/PA14, no tracks on the board) instead.
 

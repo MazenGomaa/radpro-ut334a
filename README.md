@@ -31,7 +31,8 @@ On the **UNI-T UT334A**, Rad Pro lets you:
 
 ### UT334A port status
 
-Tested on one unit (last update 2026-11-01, fork commit `5531898`):
+Tested on one unit (last update 2026-11-06, fork commit `99552fe`, the recommended build; later commits on this
+branch only change documentation or revert an experiment):
 
 * Working: boot and power on/off, keys, GM counting, pulse click and LED, alert LED and alarm tone (also from
   display sleep; an alert wakes the display as on the stock firmware), all screens, brightness levels, display
@@ -44,7 +45,13 @@ Tested on one unit (last update 2026-11-01, fork commit `5531898`):
 * Stock features: **µGy units** (Dose units → Gray: the Sv values with a Gy label, as the stock firmware does);
   **auto shutdown** after 1–24 h on battery (Settings → Power, default off; checked in the emulator only).
 * **Serial link** for data export and streaming through an added 3.3 V USB-serial adapter on the MCU's UART5
-  (PD0/PD1; the UT334A has no USB data connection; see the installation guide). Tested with an FTDI adapter.
+  (PD0/PD1; the UT334A has no USB data connection; see the installation guide). Tested with an FTDI adapter and
+  with a CH340G fitted inside the unit on its USB-C port (PC and Android phone over OTG). The port is closed before
+  sleep, so an unpowered adapter is not back-fed.
+* **Known hardware issue:** while plugged into a laptop that is on its charger, touching the unit or holding a hand
+  near the GM tube gives false counts (50 Hz hum from the charger's leakage, hundreds to thousands of CPM; the hum
+  pulses are mostly wider than real ones but some are not, so it is not filtered in firmware). Don't take readings
+  in that setup; on battery, from a phone, or with the laptop charger unplugged there is no hum.
 * Stock calibration as the "UT334A" tube preset (68.27 CPM per µSv/h, the stock low-range factor); low-battery
   power-off as stock (below 3.35 V for 100 s). Off-state current 3–8 µA. Settings survive a battery
   disconnect; after a long one the clock restarts at 2025-01-01.

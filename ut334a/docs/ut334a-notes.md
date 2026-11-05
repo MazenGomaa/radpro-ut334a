@@ -884,6 +884,49 @@ Every stock ISR and driver (`analysis/ghidra/`, disassembly checked where the de
      background (before U5 ≈ 650 cpm). Watch with `GET tubePulseCount` every few seconds.
   4. Same with the charger pulled: background.
 
+- 2026-11-06 (user): 1 done; 2 background 8.8 cpm (pass); **3 hum still happens with U5**; 4 charger pulled:
+  no hum (pass). So the CMP2O check does not reject the hum: CMP2O is still high at ISR time, i.e. the hum
+  spikes last longer than the IRQ latency (µs range). Stock may have been spared for another reason (unknown).
+- SWD rate log (read-only, 60 s, 5 s bins; laptop on charger, USB plugged; user touched near the tube several
+  times): untouched bins 0–12 cpm; touched bins 820–2500 cpm (total 1165 counts in 60.4 s). Not lower than the
+  ≈ 650 cpm before U5 (different touches, so not a like-for-like number): U5 rejects little or none of the hum.
+
+- Diagnostic build (fork branch `ut334a-diag-pulsewidth`, uncommitted, on top of `c73979b`): COMP2 on both
+  edges (ICR 0x202), `tubeDiag` struct in RAM (0x200007E0, 0xA20 B): rising/falling/short/missed counters,
+  128-bin width histogram (2 µs bins), ring of the last 256 events {rise time µs, width µs}. Counting unchanged
+  (U5). Build en: RAM 14804 B, flash 49768 B; bin `fe8071cc…465350f`, signed en image `35748c75…4846408`.
+  SWD addresses `tubePulseCount` 0x200005E0, `currentTick` 0x200005DC, `tubeDeadTime` 0x200005FC unchanged.
+- **Diag build flashed 2026-11-06** (user said "erase it"): USB unplugged (PA9 = 0), dry run `--no-nrst`
+  unprotected, same UID; flash `--no-nrst`: 512 pages erased, 12492 words, VERIFY OK. After reset: magic
+  0x44494147 at 0x200007E0, tick running. Settings reset by the erase (date/time not set: unit open on SWD).
+- Diag state (a), on battery, untouched, 213 s: 33 pulses (9.3 cpm), all with both edges seen. **Real GM pulse
+  width 140–187 µs** (most 150–176), not ≈ 45 µs as assumed; one 2 µs event 1.6 s after boot (HV start-up?).
+- Diag state (b), USB to the laptop on its charger, hand near the tube (cumulative since boot, 459 s): 373 events,
+  all with both edges seen, none shorter than the IRQ latency. 277 were ≥ 254 µs wide. Ring of the last 256:
+  240 hum pulses **460–1000 µs** wide (most 700–850 µs, rest 450–550), spaced exactly 20 ms (50 Hz).
+  16 had normal widths (126–202 µs), most at about 20/40/60 ms multiples after a hum pulse (weaker hum crossings;
+  two came 0.6 ms after a hum pulse). Estimate: ≈ 70 real counts (9.3 cpm), ≈ 300 hum, a width cutoff at
+  ≈ 230 µs would drop ≈ 90 % of the hum, not all of it; the hum that passes looks like a real pulse.
+- Fallback ready: U4 rebuilt from `99552fe` (bin `5c12a788…`, as before), signed en image `7a323b00…88107a4`
+  (same as flashed 2026-11-05). User: flash it back if the session limit gets close.
+
 ## 2026-11-06: end of eleventh session
 - On the unit: fork `c73979b` (U5), bench checks pending.
 - Next: U5 bench checks above (hum test is the main one); if hum counts remain, plan a pulse-width check.
+
+## 2026-11-06 (twelfth session): hum closed as a known hardware issue; U4 is the build to keep
+(U5 bench results, rate log, diag build and its two states: logged above under the eleventh session's U5 entries.)
+- User decision: no firmware filter. The unit is never used for readings while on USB to a laptop on its
+  charger, and the Android app (phone OTG, away from mains) has no hum. **Usage rule stays the fix**; documented
+  as a known issue in `ut334a-hardware.md` §4/§7, `install-guide.md` (serial section) and the fork README.
+- **U4 (`99552fe`) is the recommended and probably final build.** U5 reverted in the fork (`f2d9c7e`, code
+  identical to `99552fe`). Diagnostic build kept on the local branch `ut334a-diag-pulsewidth` (`e805ee3`), not pushed.
+- **Open, important (user 2026-11-06, for a future session):** the comparator says real pulses are 140–187 µs above threshold, the scope (2026-10-25)
+  said ≈ 45–50 µs; why is unknown (threshold, comparator input or probe setup?). Listed in `ut334a-hardware.md` §10 #8.
+- **U4 flashed back 2026-11-06** (user said "erase it"): PA9 = 0, dry run `--no-nrst` unprotected, same UID;
+  flash `--no-nrst`: 512 pages erased, 12451 words, VERIFY OK (signed image `7a323b00…88107a4`). After reset:
+  tick running, pulses counting. Settings reset by the erase (date/time to set when the unit is closed).
+
+## 2026-11-06: end of twelfth session
+- On the unit: U4 (`99552fe`), the final build. Firmware work closed.
+- Next: the pulse-width mismatch (hardware §10 #8, important). Side track: Android app.
